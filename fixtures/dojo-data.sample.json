@@ -1,0 +1,64 @@
+{
+  "meta": {
+    "totalClips": 45,
+    "lastUpdated": "2026-06-12T00:00:00.000Z"
+  },
+  "students": [
+    {
+      "name": "Alice Test",
+      "u": "alice_test",
+      "join": "2026-01-15",
+      "clips": 25,
+      "clip_timestamps": [
+        "2026-06-11T10:00:00.000Z",
+        "2026-06-11T14:00:00.000Z"
+      ],
+      "comments": 0,
+      "tech": 0,
+      "lounge": 0,
+      "qwei": 0,
+      "hall": 0,
+      "startBpm": 80,
+      "highBpm": 120,
+      "currentBpm": 110,
+      "loc": "Singapore",
+      "active": true,
+      "lastActivity": "2026-06-11T14:00:00.000Z"
+    },
+    {
+      "name": "Bob Upload",
+      "u": "bob_upload",
+      "join": "2026-03-01",
+      "clips": 18,
+      "clip_timestamps": [
+        "2026-06-10T08:00:00.000Z"
+      ],
+      "comments": 0,
+      "tech": 0,
+      "lounge": 0,
+      "qwei": 0,
+      "hall": 0,
+      "startBpm": 80,
+      "highBpm": 100,
+      "currentBpm": 95,
+      "loc": "US",
+      "active": true,
+      "lastActivity": "2026-06-10T08:00:00.000Z"
+    },
+    {
+      "name": "Ghost Ninja",
+      "u": "ghost_ninja",
+      "join": "2026-05-01",
+      "clips": 0,
+      "clip_timestamps": [],
+      "comments": 0,
+      "tech": 0,
+      "lounge": 0,
+      "qwei": 0,
+      "hall": 0,
+      "startBpm": 80,
+      "loc": "UK",
+      "active": true
+    }
+  ]
+}

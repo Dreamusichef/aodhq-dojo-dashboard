@@ -1,0 +1,12 @@
+{
+  "name": "aodhq-dojo-dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AODHQ Dojo Pulse bot, dashboard, and local dev tooling",
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "dev:scan": "node dev/run-scan-fixtures.js",
+    "dev:digest": "node dev/preview-digest.js --daily --fixtures",
+    "dev:rankings": "node dev/preview-rankings.js"
+  }
+}
