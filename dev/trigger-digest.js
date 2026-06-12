@@ -11,8 +11,6 @@
  *
  * Requires DOJO_TEST_MODE=1 (set by npm script) and .dojo-test-config.json from test:setup.
  */
-const path = require('path');
-module.paths.unshift(path.join(__dirname, '..', 'bot', 'node_modules'));
 const { Client, GatewayIntentBits, PermissionsBitField } = require('discord.js');
 const { createPulseOps } = require('../lib/pulse-ops');
 const {

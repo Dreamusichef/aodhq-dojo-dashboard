@@ -15,7 +15,6 @@
  */
 const fs = require('fs');
 const path = require('path');
-module.paths.unshift(path.join(__dirname, '..', 'bot', 'node_modules'));
 const { Client, GatewayIntentBits, ChannelType, PermissionsBitField } = require('discord.js');
 const { readJSON, writeJSON } = require('../lib/data');
 const { PROD_GUILD_ID } = require('../lib/discord-config');

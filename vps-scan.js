@@ -7,7 +7,8 @@
  * - Runs dojo-dashboard-gen.js (pushes GitHub Pages)
  * - Runs ninja-rankings-gen.js + edits #ninja-rankings messages via Discord API
  * - Saves updated dojo-state.json
- * Does NOT touch clip_timestamps — Pulse bot owns those.
+ * Appends clip_timestamps per detected clip (deduped). Pulse writeback may add the same
+ * window again at digest time — writeBackClipTimestamps skips duplicates.
  *
  * Env:
  *   DOJO_DRY_RUN=1 or --dry-run — skips Discord POST/PATCH
