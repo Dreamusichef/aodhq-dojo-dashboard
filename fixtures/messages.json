@@ -94,6 +94,37 @@
       "content": "https://www.youtube.com/watch?v=floortest",
       "attachments": [],
       "embeds": [{ "type": "video", "title": "120 BPM heel down floor exercise", "video": { "url": "https://www.youtube.com/embed/floortest" } }]
+    },
+    {
+      "id": "fixture-youtube-rich-embed",
+      "expectedClips": 1,
+      "timestamp": "2026-06-12T11:00:00.000Z",
+      "author": { "username": "alice_test", "global_name": "Alice Test", "bot": false },
+      "content": "",
+      "attachments": [],
+      "embeds": [{
+        "type": "rich",
+        "url": "https://www.youtube.com/watch?v=richEmbedTest",
+        "title": "Practice clip",
+        "provider": { "name": "YouTube", "url": "https://www.youtube.com" }
+      }]
+    },
+    {
+      "id": "fixture-video-metadata-only",
+      "expectedClips": 1,
+      "timestamp": "2026-06-12T11:30:00.000Z",
+      "author": { "username": "azurek", "global_name": "Azurek", "bot": false },
+      "content": "",
+      "attachments": [{
+        "id": "att-discord-video",
+        "filename": "RPReplay_Final123456789",
+        "content_type": "application/octet-stream",
+        "size": 36492061,
+        "width": 2560,
+        "height": 1440,
+        "duration_secs": 26.89
+      }],
+      "embeds": []
     }
   ]
 }

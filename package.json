@@ -7,6 +7,15 @@
     "test": "node --test test/*.test.js",
     "dev:scan": "node dev/run-scan-fixtures.js",
     "dev:digest": "node dev/preview-digest.js --daily --fixtures",
-    "dev:rankings": "node dev/preview-rankings.js"
+    "dev:rankings": "node dev/preview-rankings.js",
+    "test:setup": "node dev/setup-test-discord.js",
+    "test:bot": "cross-env DOJO_TEST_MODE=1 node bot/pulse-bot.js",
+    "test:scan": "cross-env DOJO_TEST_MODE=1 node vps-scan.js",
+    "test:digest": "cross-env DOJO_TEST_MODE=1 node dev/trigger-digest.js",
+    "test:recount": "cross-env DOJO_TEST_MODE=1 node dev/full-recount.js",
+    "recount": "node dev/full-recount.js"
+  },
+  "devDependencies": {
+    "cross-env": "^7.0.3"
   }
 }

@@ -9,98 +9,62 @@
  * - Saves updated dojo-state.json
  * Does NOT touch clip_timestamps — Pulse bot owns those.
  *
- * Env: DOJO_DRY_RUN=1 or --dry-run skips Discord POST/PATCH (local dev).
+ * Env:
+ *   DOJO_DRY_RUN=1 or --dry-run — skips Discord POST/PATCH
+ *   DOJO_TEST_MODE=1 — uses test config + isolated data dir
  */
-const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 const { readJSON, writeJSON } = require('./lib/data');
 const { processPracticeVideoMessages, processHallMessages } = require('./lib/scan-process');
+const { isMessagePayloadEmpty } = require('./lib/clip-detection');
+const { createDiscordFetch } = require('./lib/discord-fetch');
+const {
+  getDiscordConfig,
+  getDataPaths,
+  loadRankingsMessageIds,
+  isTestMode,
+} = require('./lib/discord-config');
 
-const WORKSPACE = __dirname;
-const DATA_FILE = path.join(WORKSPACE, 'dojo-data.json');
-const STATE_FILE = path.join(WORKSPACE, 'dojo-state.json');
-const TOKEN_FILE = path.join(WORKSPACE, '.pulse-bot-token.json');
-const NOTIFY_CHANNEL = '1487429631866044568'; // #clawdbot
-
-const GUILD_ID = '1343785579829137529';
-const PRACTICE_VIDEOS_ID = '1356110369818411131';
-const THE_HALL_ID = '1347383072303091823';
-
-const RANKINGS_CHANNEL = '1488189728913096744';
-const RANKINGS_HEADER = '1491470167237197986';
-const RANKINGS_GENIN = '1491470175390666835';
-const RANKINGS_FOOTER = '1491470181048778783';
+const paths = getDataPaths();
+const discord = getDiscordConfig();
+const rankings = loadRankingsMessageIds();
 
 const DRY_RUN = process.env.DOJO_DRY_RUN === '1' || process.argv.includes('--dry-run');
-
-function getToken() {
-  return JSON.parse(fs.readFileSync(TOKEN_FILE, 'utf8')).token;
-}
-
-function discordApi(method, endpoint, body) {
-  if (DRY_RUN && method !== 'GET') {
-    console.log(`[DRY RUN] ${method} ${endpoint}`);
-    return Promise.resolve({ status: 200, body: '{}' });
-  }
-
-  return new Promise((res, rej) => {
-    const token = getToken();
-    const data = body ? JSON.stringify(body) : null;
-    const req = https.request({
-      hostname: 'discord.com',
-      path: '/api/v10' + endpoint,
-      method,
-      headers: {
-        'Authorization': 'Bot ' + token,
-        'Content-Type': 'application/json',
-        ...(data ? { 'Content-Length': Buffer.byteLength(data) } : {}),
-      },
-    }, r => {
-      let d = '';
-      r.on('data', c => d += c);
-      r.on('end', () => res({ status: r.status || r.statusCode, body: d }));
-    });
-    req.on('error', rej);
-    if (data) req.write(data);
-    req.end();
-  });
-}
+const { discordApi, fetchMessages: fetchChannelMessages } = createDiscordFetch({ dryRun: DRY_RUN });
 
 async function fetchMessages(channelId, afterId) {
-  const all = [];
-  let cursor = afterId;
-  while (true) {
-    const r = await discordApi('GET', `/channels/${channelId}/messages?limit=100&after=${cursor}`);
-    if (r.status !== 200) { console.error('fetchMessages failed', r.status); break; }
-    const batch = JSON.parse(r.body);
-    if (batch.length === 0) break;
-    batch.sort((a, b) => a.id.localeCompare(b.id));
-    all.push(...batch);
-    if (batch.length < 100) break;
-    cursor = batch[batch.length - 1].id;
-    await new Promise(r => setTimeout(r, 500));
+  try {
+    return await fetchChannelMessages(channelId, afterId);
+  } catch (e) {
+    console.error('fetchMessages failed', e.status || e.message);
+    return [];
   }
-  return all;
 }
 
 async function sendNotification(content) {
+  const notifyChannel = discord.channels.notify;
+  if (!notifyChannel) {
+    console.log('[Notify skipped — no notify channel configured]', content.slice(0, 120));
+    return;
+  }
   if (DRY_RUN) {
     console.log('[DRY RUN] Notification:', content.slice(0, 120));
     return;
   }
-  await discordApi('POST', `/channels/${NOTIFY_CHANNEL}/messages`, { content });
+  await discordApi('POST', `/channels/${notifyChannel}/messages`, { content });
 }
 
 async function editRankingsMessage(messageId, content) {
+  const rankingsChannel = discord.channels.rankings;
   if (DRY_RUN) {
     console.log(`[DRY RUN] Would PATCH rankings message ${messageId} (${content.length} chars)`);
     return true;
   }
 
   for (let attempt = 1; attempt <= 3; attempt++) {
-    const r = await discordApi('PATCH', `/channels/${RANKINGS_CHANNEL}/messages/${messageId}`, { content });
+    const r = await discordApi('PATCH', `/channels/${rankingsChannel}/messages/${messageId}`, { content });
     if (r.status === 200) return true;
     if (r.status === 429) {
       try {
@@ -118,23 +82,38 @@ async function editRankingsMessage(messageId, content) {
 }
 
 async function runScan() {
-  console.log('[Scan] Starting at', new Date().toISOString(), DRY_RUN ? '(DRY RUN)' : '');
+  const mode = isTestMode() ? 'TEST MODE' : (DRY_RUN ? 'DRY RUN' : '');
+  console.log('[Scan] Starting at', new Date().toISOString(), mode);
+  if (isTestMode()) {
+    console.log('[Scan] Data dir:', paths.dataDir);
+  }
 
-  const state = readJSON(STATE_FILE);
+  const state = readJSON(paths.dojoStateFile);
   const storedPV = state.channels['practice-videos'].lastMessageId;
   const storedHall = state.channels['the-hall'].lastMessageId;
 
-  const pvMessages = await fetchMessages(PRACTICE_VIDEOS_ID, storedPV);
-  const hallMessages = await fetchMessages(THE_HALL_ID, storedHall);
+  const pvMessages = await fetchMessages(discord.channels.practiceVideos, storedPV);
+  const hallMessages = await fetchMessages(discord.channels.theHall, storedHall);
 
   console.log(`[Scan] #practice-videos: ${pvMessages.length} new messages`);
   console.log(`[Scan] #the-hall: ${hallMessages.length} new messages`);
+
+  const strippedMessages = [...pvMessages, ...hallMessages].filter(isMessagePayloadEmpty);
+  if (strippedMessages.length > 0) {
+    console.error('');
+    console.error('[Scan] WARNING: Discord returned message shell(s) with empty content, attachments, and embeds.');
+    console.error(`[Scan] ${strippedMessages.length} message(s) affected (ids: ${strippedMessages.map(m => m.id).join(', ')}).`);
+    console.error('[Scan] Enable **Message Content Intent** for your bot in the Discord Developer Portal:');
+    console.error('[Scan]   https://discord.com/developers/applications → your app → Bot → Privileged Gateway Intents');
+    console.error('[Scan] Without it, clips and links cannot be detected. Reset dojo-state cursors and re-scan after enabling.');
+    console.error('');
+  }
 
   if (pvMessages.length === 0 && hallMessages.length === 0) {
     console.log('[Scan] No new messages. Running dashboard + rankings refresh anyway.');
   }
 
-  const data = readJSON(DATA_FILE);
+  const data = readJSON(paths.dataFile);
   const students = data.students;
   let changed = false;
 
@@ -170,28 +149,36 @@ async function runScan() {
     data.meta = data.meta || {};
     data.meta.totalClips = students.reduce((s, x) => s + (x.clips || 0), 0);
     data.meta.lastUpdated = new Date().toISOString();
-    writeJSON(DATA_FILE, data);
+    writeJSON(paths.dataFile, data);
     console.log('[Scan] dojo-data.json updated');
   }
 
   state.lastChecked = new Date().toISOString();
-  writeJSON(STATE_FILE, state);
+  writeJSON(paths.dojoStateFile, state);
 
   try {
-    execSync(`node ${path.join(WORKSPACE, 'dojo-dashboard-gen.js')}`, { cwd: WORKSPACE, stdio: 'inherit' });
+    execSync(`node ${path.join(paths.workspace, 'dojo-dashboard-gen.js')}`, {
+      cwd: paths.workspace,
+      env: { ...process.env },
+      stdio: 'inherit',
+    });
     console.log('[Scan] Dashboard generated');
   } catch (e) {
     console.error('[Scan] Dashboard gen failed:', e.message);
   }
 
   try {
-    execSync(`node ${path.join(WORKSPACE, 'ninja-rankings-gen.js')}`, { cwd: WORKSPACE, stdio: 'inherit' });
-    const update = readJSON(path.join(WORKSPACE, 'ninja-rankings-update.json'));
+    execSync(`node ${path.join(paths.workspace, 'ninja-rankings-gen.js')}`, {
+      cwd: paths.workspace,
+      env: { ...process.env },
+      stdio: 'inherit',
+    });
+    const update = readJSON(paths.rankingsUpdateFile);
     const { header, genin, footer } = update.messages;
 
-    const r1 = await editRankingsMessage(RANKINGS_HEADER, header.content);
-    const r2 = await editRankingsMessage(RANKINGS_GENIN, genin.content);
-    const r3 = await editRankingsMessage(RANKINGS_FOOTER, footer.content);
+    const r1 = await editRankingsMessage(rankings.header, header.content);
+    const r2 = await editRankingsMessage(rankings.genin, genin.content);
+    const r3 = await editRankingsMessage(rankings.footer, footer.content);
     console.log(`[Scan] #ninja-rankings updated: header=${r1} genin=${r2} footer=${r3}`);
   } catch (e) {
     console.error('[Scan] Rankings update failed:', e.message);

@@ -8,10 +8,13 @@ dojo-dashboard.html
 
 # Secrets
 .pulse-bot-token.json
+.pulse-bot-token.test.json
+.dojo-test-config.json
 .github-token.json
 
 # Dev output
 dev/out/
+dev/test-data/
 
 # Dependencies
 node_modules/
