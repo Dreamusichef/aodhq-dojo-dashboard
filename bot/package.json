@@ -1,0 +1,13 @@
+{
+  "name": "dojo-pulse-bot",
+  "version": "1.0.0",
+  "description": "Dojo Pulse — automated activity digests for AODHQ",
+  "main": "pulse-bot.js",
+  "scripts": {
+    "start": "node pulse-bot.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.0.0",
+    "node-cron": "^3.0.0"
+  }
+}
