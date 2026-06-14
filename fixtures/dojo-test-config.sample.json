@@ -1,0 +1,12 @@
+{
+  "guildId": "YOUR_TEST_GUILD_ID",
+  "dataDir": "dev/test-data",
+  "channels": {
+    "practiceVideos": "CREATED_BY_SETUP",
+    "theHall": "CREATED_BY_SETUP",
+    "rankings": "CREATED_BY_SETUP",
+    "notify": "CREATED_BY_SETUP",
+    "pulseName": "dojo-pulse"
+  },
+  "allowlist": []
+}

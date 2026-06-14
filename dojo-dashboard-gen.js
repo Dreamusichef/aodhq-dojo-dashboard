@@ -7,9 +7,11 @@
  */
 const fs = require('fs');
 const path = require('path');
+const { getDataPaths, isTestMode } = require('./lib/discord-config');
 
-const dataPath = path.join(__dirname, 'dojo-data.json');
-const outPath = path.join(__dirname, 'dojo-dashboard.html');
+const paths = getDataPaths();
+const dataPath = paths.dataFile;
+const outPath = paths.dashboardHtmlFile;
 const desktopCopy = path.join(process.env.USERPROFILE || process.env.HOME, 'OneDrive', 'Desktop', 'ClawdVanDam', 'AODHQ Dashboards', 'Dojo Student Tracker.html');
 
 const data = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
@@ -269,9 +271,11 @@ try {
   console.log('Desktop copy skipped: ' + e.message);
 }
 
-// Push to GitHub Pages repo + Gist if token exists
+// Push to GitHub Pages repo + Gist if token exists (never in test mode)
 const tokenPath = path.join(__dirname, '.github-token.json');
-if (fs.existsSync(tokenPath)) {
+if (isTestMode()) {
+  console.log('Test mode — GitHub Pages push skipped');
+} else if (fs.existsSync(tokenPath)) {
   const https = require('https');
   const token = JSON.parse(fs.readFileSync(tokenPath, 'utf8')).token;
 

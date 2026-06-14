@@ -4,7 +4,7 @@
   "description": "Dojo Pulse — automated activity digests for AODHQ",
   "main": "pulse-bot.js",
   "scripts": {
-    "start": "node pulse-bot.js"
+    "start": "node -r ./register-deps.js pulse-bot.js"
   },
   "dependencies": {
     "discord.js": "^14.0.0",

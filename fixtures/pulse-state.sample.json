@@ -1,0 +1,35 @@
+{
+  "channelId": "1488891205747081267",
+  "streaks": {
+    "alice_test": {
+      "current_cycle": 1,
+      "current_week": 3,
+      "status": "active",
+      "cycle_start_date": "2026-W22",
+      "last_active_week": "2026-W24",
+      "recovery_deadline": null
+    },
+    "bob_upload": {
+      "current_cycle": 1,
+      "current_week": 2,
+      "status": "active",
+      "cycle_start_date": "2026-W23",
+      "last_active_week": "2026-W24",
+      "recovery_deadline": null
+    }
+  },
+  "previous_ranks": {
+    "alice_test": "Chūnin",
+    "bob_upload": "Genin",
+    "ghost_ninja": "Ghost"
+  },
+  "previous_positions": {
+    "alice_test": 1,
+    "bob_upload": 2,
+    "ghost_ninja": 3
+  },
+  "last_daily": "2026-06-11T15:00:01.598Z",
+  "last_weekly": null,
+  "last_monthly": null,
+  "last_weekly_clips": 12
+}

@@ -1,0 +1,21 @@
+{
+  "name": "aodhq-dojo-dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AODHQ Dojo Pulse bot, dashboard, and local dev tooling",
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "dev:scan": "node dev/run-scan-fixtures.js",
+    "dev:digest": "node dev/preview-digest.js --daily --fixtures",
+    "dev:rankings": "node dev/preview-rankings.js",
+    "test:setup": "node -r ./bot/register-deps.js dev/setup-test-discord.js",
+    "test:bot": "cross-env DOJO_TEST_MODE=1 node -r ./bot/register-deps.js bot/pulse-bot.js",
+    "test:scan": "cross-env DOJO_TEST_MODE=1 node vps-scan.js",
+    "test:digest": "cross-env DOJO_TEST_MODE=1 node -r ./bot/register-deps.js dev/trigger-digest.js",
+    "test:recount": "cross-env DOJO_TEST_MODE=1 node dev/full-recount.js",
+    "recount": "node dev/full-recount.js"
+  },
+  "devDependencies": {
+    "cross-env": "^7.0.3"
+  }
+}

@@ -1,0 +1,21 @@
+# Runtime data (copy from VPS locally — do not commit)
+dojo-data.json
+dojo-state.json
+pulse-state.json
+ninja-rankings-state.json
+ninja-rankings-update.json
+dojo-dashboard.html
+
+# Secrets
+.pulse-bot-token.json
+.pulse-bot-token.test.json
+.dojo-test-config.json
+.github-token.json
+
+# Dev output
+dev/out/
+dev/test-data/
+
+# Dependencies
+node_modules/
+bot/node_modules/

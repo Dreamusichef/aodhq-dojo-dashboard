@@ -1,0 +1,130 @@
+{
+  "practice-videos": [
+    {
+      "id": "fixture-youtube-single",
+      "expectedClips": 1,
+      "timestamp": "2026-06-12T06:00:00.000Z",
+      "author": { "username": "alice_test", "global_name": "Alice Test", "bot": false },
+      "content": "Day 42 — interval training https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      "attachments": [],
+      "embeds": [{ "type": "video", "title": "120 BPM interval routine", "video": { "url": "https://www.youtube.com/embed/dQw4w9WgXcQ" } }]
+    },
+    {
+      "id": "fixture-mp4-upload",
+      "expectedClips": 1,
+      "timestamp": "2026-06-12T07:00:00.000Z",
+      "author": { "username": "bob_upload", "global_name": "Bob Upload", "bot": false },
+      "content": "Direct upload today",
+      "attachments": [
+        {
+          "id": "att-mp4-1",
+          "filename": "practice-session.mp4",
+          "content_type": "video/mp4",
+          "size": 8500000
+        }
+      ],
+      "embeds": []
+    },
+    {
+      "id": "fixture-small-gif-mp4",
+      "expectedClips": 0,
+      "timestamp": "2026-06-12T07:30:00.000Z",
+      "author": { "username": "alice_test", "global_name": "Alice Test", "bot": false },
+      "content": "funny moment",
+      "attachments": [
+        {
+          "id": "att-gif-1",
+          "filename": "reaction.mp4",
+          "content_type": "video/mp4",
+          "size": 500000
+        }
+      ],
+      "embeds": []
+    },
+    {
+      "id": "fixture-practice-named-mp4",
+      "expectedClips": 1,
+      "timestamp": "2026-06-12T08:00:00.000Z",
+      "author": { "username": "bob_upload", "global_name": "Bob Upload", "bot": false },
+      "content": "",
+      "attachments": [
+        {
+          "id": "att-practice-small",
+          "filename": "practice-clip.mp4",
+          "content_type": "video/mp4",
+          "size": 800000
+        }
+      ],
+      "embeds": []
+    },
+    {
+      "id": "fixture-multi-clip",
+      "expectedClips": 2,
+      "timestamp": "2026-06-12T09:00:00.000Z",
+      "author": { "username": "alice_test", "global_name": "Alice Test", "bot": false },
+      "content": "Two clips today https://youtu.be/abc123 and https://vimeo.com/123456",
+      "attachments": [],
+      "embeds": []
+    },
+    {
+      "id": "fixture-tenor-gif",
+      "expectedClips": 0,
+      "timestamp": "2026-06-12T09:30:00.000Z",
+      "author": { "username": "alice_test", "global_name": "Alice Test", "bot": false },
+      "content": "https://tenor.com/view/drummer-gif",
+      "attachments": [],
+      "embeds": [{ "type": "gifv", "provider": { "url": "https://tenor.com" } }]
+    },
+    {
+      "id": "fixture-bpm-embed",
+      "expectedClips": 1,
+      "expectedBpm": 140,
+      "timestamp": "2026-06-12T10:00:00.000Z",
+      "author": { "username": "alice_test", "global_name": "Alice Test", "bot": false },
+      "content": "https://www.youtube.com/watch?v=bpmtest",
+      "attachments": [],
+      "embeds": [{ "type": "video", "title": "140 BPM core endurance routine", "video": { "url": "https://www.youtube.com/embed/bpmtest" } }]
+    },
+    {
+      "id": "fixture-bpm-excluded",
+      "expectedClips": 1,
+      "expectedBpm": null,
+      "timestamp": "2026-06-12T10:30:00.000Z",
+      "author": { "username": "bob_upload", "global_name": "Bob Upload", "bot": false },
+      "content": "https://www.youtube.com/watch?v=floortest",
+      "attachments": [],
+      "embeds": [{ "type": "video", "title": "120 BPM heel down floor exercise", "video": { "url": "https://www.youtube.com/embed/floortest" } }]
+    },
+    {
+      "id": "fixture-youtube-rich-embed",
+      "expectedClips": 1,
+      "timestamp": "2026-06-12T11:00:00.000Z",
+      "author": { "username": "alice_test", "global_name": "Alice Test", "bot": false },
+      "content": "",
+      "attachments": [],
+      "embeds": [{
+        "type": "rich",
+        "url": "https://www.youtube.com/watch?v=richEmbedTest",
+        "title": "Practice clip",
+        "provider": { "name": "YouTube", "url": "https://www.youtube.com" }
+      }]
+    },
+    {
+      "id": "fixture-video-metadata-only",
+      "expectedClips": 1,
+      "timestamp": "2026-06-12T11:30:00.000Z",
+      "author": { "username": "azurek", "global_name": "Azurek", "bot": false },
+      "content": "",
+      "attachments": [{
+        "id": "att-discord-video",
+        "filename": "RPReplay_Final123456789",
+        "content_type": "application/octet-stream",
+        "size": 36492061,
+        "width": 2560,
+        "height": 1440,
+        "duration_secs": 26.89
+      }],
+      "embeds": []
+    }
+  ]
+}
