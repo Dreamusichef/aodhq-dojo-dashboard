@@ -285,22 +285,30 @@ When no new messages were found, `vps-scan.js` returned early without regenerati
 
 ## How to Deploy Changes
 
+`/opt/dojo-pulse` is a **git checkout of `main`**. Deploy = pull + reload. Do not hand-edit
+files on the server — push to `main`, then pull on the VPS.
+
 ```bash
-# SSH into VPS
 ssh root@204.168.223.58
+cd /opt/dojo-pulse
+git pull
 
-# Edit files directly or SCP from local
-scp localfile.js root@204.168.223.58:/opt/dojo-pulse/filename.js
+# only if bot/ dependencies changed:
+cd bot && npm install && cd ..
 
-# For pulse-bot.js changes (needs restart):
-pm2 restart dojo-pulse
+# restart the bot (PM2 launches it via ecosystem.config.js):
+pm2 reload ecosystem.config.js
+pm2 logs dojo-pulse --lines 50        # verify: "Dojo Pulse online ... (PRODUCTION)"
 
-# For vps-scan.js changes (no restart needed — runs as child process each time)
-# Just replace the file
-
-# Check logs
-pm2 logs dojo-pulse --lines 100
-
-# Manual scan trigger
-cd /opt/dojo-pulse && node vps-scan.js
+# manual scan to refresh dashboard + #ninja-rankings when needed:
+node vps-scan.js
 ```
+
+**Local-only files** (gitignored; `git pull` never touches them):
+`dojo-data.json`, `dojo-state.json`, `pulse-state.json`, `ninja-rankings-state.json`,
+`.pulse-bot-token.json`, `.github-token.json`.
+
+The bot **must** be launched from `ecosystem.config.js` (it sets `cwd` and the
+`-r ./bot/register-deps.js` preload so shared `lib/` code can resolve `discord.js` from
+`bot/node_modules`). Starting it with a bare `node bot/pulse-bot.js` crashes with
+`MODULE_NOT_FOUND`.
