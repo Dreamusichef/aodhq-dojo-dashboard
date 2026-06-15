@@ -73,6 +73,8 @@ function main() {
     if (fixturePath) {
       const fixtures = readJSON(fixturePath);
       const messages = fixtures['practice-videos'] || [];
+      // Offline preview uses getTodayWindow (current in-progress dojo day). Production
+      // cron + test:digest use getReportingDayWindow (dojo day that just ended at 23:00 SGT).
       const { cutoffStart, cutoffEnd } = getTodayWindow();
       liveData = simulateLiveClips(messages, students, cutoffStart, cutoffEnd);
       console.log(`[Simulated live fetch] ${liveData.totalClips} clips from ${liveData.ninjaCount} ninjas`);

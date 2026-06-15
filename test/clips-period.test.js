@@ -40,3 +40,21 @@ describe('getReportingDayWindow (daily digest at the 23:00 boundary)', () => {
     assert.strictEqual(n, 1);
   });
 });
+
+describe('dojo day windows at digest boundary', () => {
+  const digestTime = new Date('2026-06-15T15:00:03.000Z');
+
+  it('getTodayWindow starts where getReportingDayWindow ends', () => {
+    const today = getTodayWindow(digestTime);
+    const reporting = getReportingDayWindow(digestTime);
+    assert.strictEqual(today.cutoffStart.toISOString(), reporting.cutoffEnd.toISOString());
+    assert.strictEqual(reporting.cutoffStart.toISOString(), '2026-06-14T15:00:00.000Z');
+    assert.strictEqual(today.cutoffEnd.toISOString(), '2026-06-16T15:00:00.000Z');
+  });
+
+  it('clipsReportingDay excludes clips in the new dojo day; clipsToday includes them', () => {
+    const clipInNewDay = '2026-06-15T15:00:01.000Z';
+    assert.strictEqual(clipsReportingDay([clipInNewDay], digestTime), 0);
+    assert.strictEqual(clipsToday([clipInNewDay], digestTime), 1);
+  });
+});
