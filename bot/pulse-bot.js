@@ -34,10 +34,11 @@ const ops = createPulseOps({ paths, discord, dryRun: DRY_RUN });
 
 async function registerSlashCommands(client) {
   const commands = [
+    // Public command — every member can check their own stats.
+    // (Do NOT set default member permissions here; '0' would hide it from non-admins.)
     new SlashCommandBuilder()
       .setName('mystats')
-      .setDescription('Check your personal Dojo stats — clips, rank, streak, and more')
-      .setDefaultMemberPermissions('0'),
+      .setDescription('Check your personal Dojo stats — clips, rank, streak, and more'),
   ];
 
   if (isTestMode()) {
