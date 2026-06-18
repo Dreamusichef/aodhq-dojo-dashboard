@@ -335,6 +335,29 @@ if (isTestMode()) {
     })
     .catch(e => console.log('Pages push error: ' + e.message));
 
+  // 1b) Publish a slimmed public dojo-data.json for the live dashboard frontend to fetch.
+  //     (Drops clip_timestamps + internal notes; served with CORS * by GitHub Pages.)
+  const publicStudents = data.students.map(s => ({
+    name: s.name, u: s.u, loc: s.loc || '', clips: s.clips || 0,
+    comments: s.comments || 0, tech: s.tech || 0, lounge: s.lounge || 0, qwei: s.qwei || 0, hall: s.hall || 0,
+    startBpm: s.startBpm ?? null, highBpm: s.highBpm ?? null, currentBpm: s.currentBpm ?? null,
+    active: !!s.active, join: s.join || null,
+  }));
+  const publicData = { meta: { totalClips: meta.totalClips, lastUpdated: meta.lastUpdated, count: publicStudents.length }, students: publicStudents };
+  const dataB64 = Buffer.from(JSON.stringify(publicData)).toString('base64');
+  ghApi('GET', '/repos/' + owner + '/' + repo + '/contents/dojo-data.json')
+    .then(existing => {
+      let sha = null;
+      if (existing.status === 200) { try { sha = JSON.parse(existing.body).sha; } catch (e) {} }
+      const body = { message: 'Data update ' + new Date().toISOString(), content: dataB64, branch: 'main' };
+      if (sha) body.sha = sha;
+      return ghApi('PUT', '/repos/' + owner + '/' + repo + '/contents/dojo-data.json', body);
+    })
+    .then(r => console.log((r.status === 200 || r.status === 201)
+      ? 'Public data updated: https://dreamusichef.github.io/aodhq-dojo-dashboard/dojo-data.json'
+      : 'Data push failed (' + r.status + '): ' + r.body.slice(0, 160)))
+    .catch(e => console.log('Data push error: ' + e.message));
+
   // 2) Also update Gist (legacy, keeps old links working)
   const gistId = 'd2ab52cb0aa21eac8bb3a26f4b9a3fb9';
   const gistPayload = JSON.stringify({ files: { 'bpm-ninja-rankings.html': { content: html }, 'dojo-dashboard.html': { content: html } } });
