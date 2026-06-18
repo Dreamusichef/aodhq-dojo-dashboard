@@ -307,36 +307,29 @@ if (isTestMode()) {
     });
   }
 
-  // 1) Push to GitHub Pages repo (Dreamusichef/aodhq-dojo-dashboard)
+  // 1) Push index.html (dashboard) THEN dojo-data.json (public data) to the Pages repo.
+  //    Must be sequential — concurrent content PUTs to the same branch race on the commit
+  //    sha and 409. The slim dojo-data.json is what the live frontend fetches (drops
+  //    clip_timestamps + internal notes; GitHub Pages serves it with CORS *).
   const owner = 'Dreamusichef';
   const repo = 'aodhq-dojo-dashboard';
-  const content = Buffer.from(html).toString('base64');
 
-  ghApi('GET', '/repos/' + owner + '/' + repo + '/contents/index.html')
-    .then(existing => {
-      let sha = null;
-      if (existing.status === 200) {
-        try { sha = JSON.parse(existing.body).sha; } catch(e) {}
-      }
-      const putBody = {
-        message: 'Dashboard update ' + new Date().toISOString(),
-        content,
-        branch: 'main'
-      };
-      if (sha) putBody.sha = sha;
-      return ghApi('PUT', '/repos/' + owner + '/' + repo + '/contents/index.html', putBody);
-    })
-    .then(r => {
-      if (r.status === 200 || r.status === 201) {
-        console.log('GitHub Pages updated: https://dreamusichef.github.io/aodhq-dojo-dashboard/');
-      } else {
-        console.log('Pages push failed (' + r.status + '): ' + r.body.slice(0, 200));
-      }
-    })
-    .catch(e => console.log('Pages push error: ' + e.message));
+  function pushFile(file, contentB64, message) {
+    return ghApi('GET', '/repos/' + owner + '/' + repo + '/contents/' + file)
+      .then(existing => {
+        let sha = null;
+        if (existing.status === 200) { try { sha = JSON.parse(existing.body).sha; } catch (e) {} }
+        const body = { message, content: contentB64, branch: 'main' };
+        if (sha) body.sha = sha;
+        return ghApi('PUT', '/repos/' + owner + '/' + repo + '/contents/' + file, body);
+      })
+      .then(r => {
+        const okPush = r.status === 200 || r.status === 201;
+        console.log(okPush ? (file + ' pushed') : (file + ' push failed (' + r.status + '): ' + r.body.slice(0, 160)));
+        return okPush;
+      });
+  }
 
-  // 1b) Publish a slimmed public dojo-data.json for the live dashboard frontend to fetch.
-  //     (Drops clip_timestamps + internal notes; served with CORS * by GitHub Pages.)
   const publicStudents = data.students.map(s => ({
     name: s.name, u: s.u, loc: s.loc || '', clips: s.clips || 0,
     comments: s.comments || 0, tech: s.tech || 0, lounge: s.lounge || 0, qwei: s.qwei || 0, hall: s.hall || 0,
@@ -344,19 +337,11 @@ if (isTestMode()) {
     active: !!s.active, join: s.join || null,
   }));
   const publicData = { meta: { totalClips: meta.totalClips, lastUpdated: meta.lastUpdated, count: publicStudents.length }, students: publicStudents };
-  const dataB64 = Buffer.from(JSON.stringify(publicData)).toString('base64');
-  ghApi('GET', '/repos/' + owner + '/' + repo + '/contents/dojo-data.json')
-    .then(existing => {
-      let sha = null;
-      if (existing.status === 200) { try { sha = JSON.parse(existing.body).sha; } catch (e) {} }
-      const body = { message: 'Data update ' + new Date().toISOString(), content: dataB64, branch: 'main' };
-      if (sha) body.sha = sha;
-      return ghApi('PUT', '/repos/' + owner + '/' + repo + '/contents/dojo-data.json', body);
-    })
-    .then(r => console.log((r.status === 200 || r.status === 201)
-      ? 'Public data updated: https://dreamusichef.github.io/aodhq-dojo-dashboard/dojo-data.json'
-      : 'Data push failed (' + r.status + '): ' + r.body.slice(0, 160)))
-    .catch(e => console.log('Data push error: ' + e.message));
+
+  pushFile('index.html', Buffer.from(html).toString('base64'), 'Dashboard update ' + new Date().toISOString())
+    .then(() => pushFile('dojo-data.json', Buffer.from(JSON.stringify(publicData)).toString('base64'), 'Data update ' + new Date().toISOString()))
+    .then(() => console.log('GitHub Pages updated: https://dreamusichef.github.io/aodhq-dojo-dashboard/  (+ /dojo-data.json)'))
+    .catch(e => console.log('Pages push error: ' + e.message));
 
   // 2) Also update Gist (legacy, keeps old links working)
   const gistId = 'd2ab52cb0aa21eac8bb3a26f4b9a3fb9';
