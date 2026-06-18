@@ -339,8 +339,8 @@ if (isTestMode()) {
   const publicData = { meta: { totalClips: meta.totalClips, lastUpdated: meta.lastUpdated, count: publicStudents.length }, students: publicStudents };
 
   pushFile('index.html', Buffer.from(html).toString('base64'), 'Dashboard update ' + new Date().toISOString())
-    .then(() => pushFile('dojo-data.json', Buffer.from(JSON.stringify(publicData)).toString('base64'), 'Data update ' + new Date().toISOString()))
-    .then(() => console.log('GitHub Pages updated: https://dreamusichef.github.io/aodhq-dojo-dashboard/  (+ /dojo-data.json)'))
+    .then(() => pushFile('dojo-data.public.json', Buffer.from(JSON.stringify(publicData)).toString('base64'), 'Data update ' + new Date().toISOString()))
+    .then(() => console.log('GitHub Pages updated: https://dreamusichef.github.io/aodhq-dojo-dashboard/  (+ /dojo-data.public.json)'))
     .catch(e => console.log('Pages push error: ' + e.message));
 
   // 2) Also update Gist (legacy, keeps old links working)
