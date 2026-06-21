@@ -39,6 +39,13 @@ async function registerSlashCommands(client) {
     new SlashCommandBuilder()
       .setName('mystats')
       .setDescription('Check your personal Dojo stats — clips, rank, streak, and more'),
+    // Admin-only: preview (private) or fire the milestone celebration.
+    new SlashCommandBuilder()
+      .setName('dojo-celebrate')
+      .setDescription('Preview or fire the milestone celebration (admin only)')
+      .addBooleanOption(o => o.setName('confirm').setDescription('Actually post to #announcements with @everyone'))
+      .addIntegerOption(o => o.setName('milestone').setDescription('Milestone to celebrate (default: current 1,000 mark)'))
+      .setDefaultMemberPermissions('0'),
   ];
 
   if (isTestMode()) {
@@ -139,6 +146,8 @@ async function main() {
             console.log('[Digest] Daily');
             await ops.runDaily(channel, client);
           }
+
+          await ops.runMilestoneCheck(client);
         } catch (e) { console.error('[Digest error]', e); }
       }, { timezone: 'UTC' });
 
@@ -177,6 +186,40 @@ async function main() {
       } catch (e) {
         console.error('[/mystats error]', e.message);
         await interaction.reply({ content: 'Something went wrong. Try again later.', ephemeral: true }).catch(() => {});
+      }
+      return;
+    }
+
+    if (interaction.commandName === 'dojo-celebrate') {
+      if (!interaction.memberPermissions || !interaction.memberPermissions.has('Administrator')) {
+        await interaction.reply({ content: 'Admins only.', ephemeral: true });
+        return;
+      }
+      try {
+        const data = loadDojoData(paths.dataFile);
+        const total = data.students.reduce((sum, s) => sum + (s.clips || 0), 0);
+        const milestone = interaction.options.getInteger('milestone') || (Math.floor(total / 1000) * 1000) || 2000;
+        const confirm = interaction.options.getBoolean('confirm');
+        if (confirm) {
+          await interaction.deferReply({ ephemeral: true });
+          await ops.postCelebration(client, milestone, { ping: true });
+          const st = ops.loadState();
+          if ((st.last_milestone || 0) < milestone) { st.last_milestone = milestone; ops.saveState(st); }
+          await interaction.editReply('🔥 Celebration for ' + milestone.toLocaleString() + ' posted to #announcements (with @everyone).');
+        } else {
+          const { content, imgPath, hasImage } = ops.buildCelebration(milestone);
+          await interaction.reply({
+            content: '**PREVIEW — only you can see this, no @everyone ping**\n\n@everyone\n\n' + content,
+            files: hasImage ? [imgPath] : [],
+            allowedMentions: { parse: [] },
+            ephemeral: true,
+          });
+        }
+      } catch (e) {
+        console.error('[/dojo-celebrate error]', e.message);
+        const m = 'Failed: ' + e.message;
+        if (interaction.deferred || interaction.replied) await interaction.editReply(m).catch(() => {});
+        else await interaction.reply({ content: m, ephemeral: true }).catch(() => {});
       }
       return;
     }
