@@ -197,7 +197,7 @@ async function main() {
       try {
         const data = loadDojoData(paths.dataFile);
         const total = data.students.reduce((sum, s) => sum + (s.clips || 0), 0);
-        const milestone = interaction.options.getInteger('milestone') || (Math.floor(total / 1000) * 1000) || 2000;
+        const milestone = interaction.options.getInteger('milestone') || (Math.ceil(total / 1000) * 1000) || 2000;
         const { content } = ops.buildCelebration(milestone);
         await interaction.reply({
           content: 'Ready-to-paste celebration for **' + milestone.toLocaleString() + '** — copy the block, then post it to #announcements with your image:\n\n```\n@everyone\n\n' + content + '\n```',
