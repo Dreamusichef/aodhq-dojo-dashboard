@@ -39,6 +39,12 @@ async function registerSlashCommands(client) {
     new SlashCommandBuilder()
       .setName('mystats')
       .setDescription('Check your personal Dojo stats — clips, rank, streak, and more'),
+    // Admin-only, private: get the ready-to-paste celebration message.
+    new SlashCommandBuilder()
+      .setName('dojo-celebrate')
+      .setDescription('Get the ready-to-paste milestone celebration message (admin only, private)')
+      .addIntegerOption(o => o.setName('milestone').setDescription('Milestone to celebrate (default: current 1,000 mark)'))
+      .setDefaultMemberPermissions('0'),
   ];
 
   if (isTestMode()) {
@@ -139,6 +145,8 @@ async function main() {
             console.log('[Digest] Daily');
             await ops.runDaily(channel, client);
           }
+
+          await ops.runMilestoneCheck(client);
         } catch (e) { console.error('[Digest error]', e); }
       }, { timezone: 'UTC' });
 
@@ -177,6 +185,30 @@ async function main() {
       } catch (e) {
         console.error('[/mystats error]', e.message);
         await interaction.reply({ content: 'Something went wrong. Try again later.', ephemeral: true }).catch(() => {});
+      }
+      return;
+    }
+
+    if (interaction.commandName === 'dojo-celebrate') {
+      if (!interaction.memberPermissions || !interaction.memberPermissions.has('Administrator')) {
+        await interaction.reply({ content: 'Admins only.', ephemeral: true });
+        return;
+      }
+      try {
+        const data = loadDojoData(paths.dataFile);
+        const total = data.students.reduce((sum, s) => sum + (s.clips || 0), 0);
+        const milestone = interaction.options.getInteger('milestone') || (Math.floor(total / 1000) * 1000) || 2000;
+        const { content } = ops.buildCelebration(milestone);
+        await interaction.reply({
+          content: 'Ready-to-paste celebration for **' + milestone.toLocaleString() + '** — copy the block, then post it to #announcements with your image:\n\n```\n@everyone\n\n' + content + '\n```',
+          allowedMentions: { parse: [] },
+          ephemeral: true,
+        });
+      } catch (e) {
+        console.error('[/dojo-celebrate error]', e.message);
+        const m = 'Failed: ' + e.message;
+        if (interaction.deferred || interaction.replied) await interaction.editReply(m).catch(() => {});
+        else await interaction.reply({ content: m, ephemeral: true }).catch(() => {});
       }
       return;
     }
