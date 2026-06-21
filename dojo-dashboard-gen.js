@@ -8,6 +8,7 @@
 const fs = require('fs');
 const path = require('path');
 const { getDataPaths, isTestMode } = require('./lib/discord-config');
+const { buildPublicStudents } = require('./lib/public-projection');
 
 const paths = getDataPaths();
 const dataPath = paths.dataFile;
@@ -330,12 +331,10 @@ if (isTestMode()) {
       });
   }
 
-  const publicStudents = data.students.map(s => ({
-    name: s.name, u: s.u, loc: s.loc || '', clips: s.clips || 0,
-    comments: s.comments || 0, tech: s.tech || 0, lounge: s.lounge || 0, qwei: s.qwei || 0, hall: s.hall || 0,
-    startBpm: s.startBpm ?? null, highBpm: s.highBpm ?? null, currentBpm: s.currentBpm ?? null,
-    active: !!s.active, join: s.join || null,
-  }));
+  // Public projection: attach roles (lookup by `u`), normalize loc, then DROP `u` (privacy).
+  const rolesPath = path.join(__dirname, 'roles.json');
+  const roles = fs.existsSync(rolesPath) ? JSON.parse(fs.readFileSync(rolesPath, 'utf8')) : {};
+  const publicStudents = buildPublicStudents(data.students, roles);
   const publicData = { meta: { totalClips: meta.totalClips, lastUpdated: meta.lastUpdated, count: publicStudents.length }, students: publicStudents };
 
   pushFile('index.html', Buffer.from(html).toString('base64'), 'Dashboard update ' + new Date().toISOString())
