@@ -96,6 +96,16 @@
       "embeds": [{ "type": "video", "title": "120 BPM heel down floor exercise", "video": { "url": "https://www.youtube.com/embed/floortest" } }]
     },
     {
+      "id": "fixture-bpm-fail",
+      "expectedClips": 1,
+      "expectedBpm": null,
+      "timestamp": "2026-06-12T10:45:00.000Z",
+      "author": { "username": "alice_test", "global_name": "Alice Test", "bot": false },
+      "content": "https://www.youtube.com/watch?v=failtest",
+      "attachments": [],
+      "embeds": [{ "type": "video", "title": "150 BPM core routine fail attempt", "video": { "url": "https://www.youtube.com/embed/failtest" } }]
+    },
+    {
       "id": "fixture-youtube-rich-embed",
       "expectedClips": 1,
       "timestamp": "2026-06-12T11:00:00.000Z",
