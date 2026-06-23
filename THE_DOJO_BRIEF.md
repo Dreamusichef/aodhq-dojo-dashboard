@@ -3,7 +3,7 @@
 > Drop-in context for any new chat (Claude Code, claude.ai, Lovable). Covers the **Dojo Pulse bot**
 > (what it is, how it works, how it runs) and **the dream build** (a premium student/home portal).
 > Sibling docs in this repo: `README.md` (dev commands), `TECHNICAL_SUMMARY.md` (infra detail).
-> As of June 2026: ~112 members, **77 active ninjas across 36 countries**, ~1,982 / 2,000 clips logged.
+> As of June 2026: **~111 ninjas, 77 active across 36 countries**, ~1,982 / 2,000 clips logged. (Counts refresh nightly.)
 
 ---
 
@@ -53,8 +53,10 @@ VPS — Hetzner CX23, Helsinki, Ubuntu 24.04, IP 204.168.223.58, PM2-managed
 - **lib/ modules:** `clip-detection` (unified clip counting), `scan-process` (scan pipeline), `digest`
   (daily/weekly/monthly message builders + /mystats), `streaks` (Cycle/Week), `milestone` (celebration message
   + crossing detection), `clips-period`/`sgt` (SGT dojo-day/week/month windows), `rankings-gen` (the 3 ranking
-  messages + country→flag map), `recount-clips`/`full-recount` (one-time recount ops), `data` (read/write +
-  reconcile), `discord-fetch` (raw-REST Discord, 429-aware), `discord-config` (channel IDs, paths, token), `pulse-ops` (the bot's run functions).
+  messages + country→flag map), `public-projection` (shapes the privacy-safe public JSON — drops PII, normalizes
+  locations, attaches the `roles` overlay), `recount-clips`/`full-recount` (one-time recount ops), `data`
+  (read/write + reconcile), `discord-fetch` (raw-REST Discord, 429-aware), `discord-config` (channel IDs, paths,
+  token), `pulse-ops` (the bot's run functions).
 - **Timezone:** the dojo "day" boundary is **23:00 SGT = 15:00 UTC**. Week rolls SGT-midnight Monday; month by SGT calendar.
 
 ### Nightly schedule (crons, in pulse-bot.js)
@@ -79,9 +81,16 @@ VPS — Hetzner CX23, Helsinki, Ubuntu 24.04, IP 204.168.223.58, PM2-managed
   }]
 }
 ```
-- **Public projection:** `dojo-data.public.json` (slim — drops `clip_timestamps` + `notes`) is published to
-  GitHub Pages for any frontend to fetch (CORS `*`, ~10-min cache, refreshes nightly):
-  `https://dreamusichef.github.io/aodhq-dojo-dashboard/dojo-data.public.json`
+- **Public projection:** `dojo-data.public.json` is a **privacy-safe, slimmed** view built by
+  `lib/public-projection.js` and published to GitHub Pages for any frontend to fetch (CORS `*`, ~10-min cache,
+  refreshes nightly): `https://dreamusichef.github.io/aodhq-dojo-dashboard/dojo-data.public.json`
+  - **Drops** the Discord username `u` (PII) and the source-only fields `clip_timestamps`, `notes`, `lastActivity`.
+  - **Normalizes `loc`** to full country names (e.g. `US`/`NY`/`LA`/`S. California` → *United States*;
+    `UK`/`London`/`Scotland`/`Wales` → *United Kingdom*; `Perth, AU`/`Melbourne` → *Australia*; etc.).
+  - **Roles overlay** (`roles.json`, hand-curated, keyed by username): attaches a `roles` object —
+    `{ "sentinel": true }` for **Dojo Sentinels** (trusted senior students / the `#sentinel-council`) plus an
+    optional `"specialization"` title (e.g. *Keeper of the Hall*, *Software Specialist*). The lookup reads `u`
+    **before** it is stripped, so the join key never leaks. No role → field simply absent.
 
 ---
 
@@ -155,7 +164,41 @@ A premium redesign (dark, gold/crimson, kanji crests, BPM journey) is being buil
 
 ---
 
-## 8. THE DREAM BUILD — the premium student / home portal
+## 8. Data hygiene, privacy & security
+
+**Data hygiene (the source of truth is curated, not just scraped).**
+- **Manual VIPs** — 1-on-1 students who don't post in `#practice-videos` (e.g. "worm soup" at 58) — are added by
+  hand and preserved across scans.
+- **Dedup discipline:** a member who changes their Discord handle can spawn a duplicate "ghost" record. Merge/remove
+  by hand and keep **one record per person** (e.g. the duplicate `@wiola` ghost was removed; `@wiola17`, 3 clips, is
+  the real one). The scan reconciles by username.
+- The detector can over-count shared tutorials (any video embed counts); a periodic sweep trims obvious
+  3rd-party-channel clips and counts are spot-checked against reality.
+
+**Privacy — what's public today.** The only thing exposed to the world is `dojo-data.public.json`, and it is
+**deliberately PII-free**: no Discord usernames, no message timestamps, no private notes (see §3) — display name +
+country + practice stats only. The current Lovable dashboard is **read-only and static** (it fetches that one JSON),
+so its attack surface is small: no database, no auth, no user input, no secrets in the client.
+
+**Security — for the portal phase (the moment login / a database / uploads / payments come online).** The risk model
+changes the instant we store real accounts. Bake these in from day one:
+- **RLS on every table, default-deny.** Nothing is readable/writable without an explicit, least-privilege policy.
+  This is the single most important control — a mis-set RLS policy is the most common Supabase-breach cause.
+- **Keys:** the Supabase **anon** key is safe client-side *because RLS protects the data*; the **service_role** key
+  must **never** ship to the client or the repo (server-side / Edge Functions only). Same rule for any third-party
+  API key (e.g. email/Kit) — Edge Function secrets, never client JS.
+- **Auth enforced server-side** (not just hidden in the UI). Validate every Edge Function input. Scope CORS to the
+  real frontend origin (drop the `*`) once there's anything private to serve.
+- **Storage:** private buckets + signed URLs for any student-uploaded video/asset.
+- **Minors & payments:** if the portal ever stores under-18 names, guardian contacts, or payment data, treat it as
+  regulated — use a processor (Stripe) so card data never touches our DB; minimize + encrypt PII; run Lovable's
+  security scan **and** the Supabase advisor before every launch.
+- **Process:** Claude does **not** run SQL/DDL — schema/policy changes are written here and pasted into the Supabase
+  SQL editor by the human owner.
+
+---
+
+## 9. THE DREAM BUILD — the premium student / home portal
 
 **Vision:** evolve "The Dojo" into a terrific, premium, thematic, **inviting** home/student portal — the place
 that hosts *The Art of Double Bass* and all future courses, and the daily home for the ninjas. Useful, on-brand,
@@ -200,6 +243,24 @@ easy to navigate, **less overwhelming than Discord.** Possibly, eventually, **re
 ### Hosting & domain
 Custom domain target like `dojo.artofdrumminghq.com` (Lovable custom domain + DNS CNAME, same pattern as
 `metronome.artofdrumminghq.com`). The public data API is already CORS-ready for the frontend to fetch live.
+
+---
+
+## 10. Changelog / recent rollouts
+
+A running log of what's shipped, so any new chat can see where the build is.
+
+- **Jun 2026 — Public API hardened for privacy.** `dojo-data.public.json` now drops the Discord username (`u`) and
+  other source-only fields, normalizes `loc` to full country names, and carries a curated `roles` overlay (Dojo
+  Sentinels + specializations). New: `lib/public-projection.js`, `roles.json`. (§3, §8)
+- **Jun 2026 — Data dedup.** Removed the duplicate `@wiola` ghost; one record per ninja. (§8)
+- **Jun 2026 — Milestone celebration system.** Owner-ping + paste-ready feast message + subtle digest flourish +
+  `/dojo-celebrate`; the bot never auto-posts publicly. (§4.6)
+- **Jun 2026 — Daily-digest boundary fix.** A reporting-day window so the 23:00 SGT digest reports the day that just
+  ended, not the empty new day.
+- **Jun 2026 — `/mystats` made public** to all members; full clip recount + migration to a **git-based deploy**
+  (`ecosystem.config.js`, `git pull` + `pm2 reload`).
+- **In progress — Lovable re-skin** of the dashboard (premium dark dojo), fed live by the public JSON. (§1, §4.8, §9)
 
 ---
 *Don't stop dreaming, and don't stop drumming.*
