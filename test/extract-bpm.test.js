@@ -20,6 +20,11 @@ describe('extractBpm', () => {
     assert.strictEqual(extractBpm(msg), null);
   });
 
+  it('returns null when title contains fail', () => {
+    const msg = messages.find(m => m.id === 'fixture-bpm-fail');
+    assert.strictEqual(extractBpm(msg), null);
+  });
+
   it('returns null when no embeds', () => {
     assert.strictEqual(extractBpm({ embeds: [] }), null);
   });
