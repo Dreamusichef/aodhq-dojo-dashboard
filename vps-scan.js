@@ -18,7 +18,7 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 const { readJSON, writeJSON } = require('./lib/data');
-const { processPracticeVideoMessages, processHallMessages } = require('./lib/scan-process');
+const { processPracticeVideoMessages, processMessageChannel } = require('./lib/scan-process');
 const { isMessagePayloadEmpty } = require('./lib/clip-detection');
 const { createDiscordFetch } = require('./lib/discord-fetch');
 const {
@@ -26,6 +26,7 @@ const {
   getDataPaths,
   loadRankingsMessageIds,
   isTestMode,
+  MESSAGE_CHANNELS,
 } = require('./lib/discord-config');
 
 const paths = getDataPaths();
@@ -90,16 +91,14 @@ async function runScan() {
   }
 
   const state = readJSON(paths.dojoStateFile);
-  const storedPV = state.channels['practice-videos'].lastMessageId;
-  const storedHall = state.channels['the-hall'].lastMessageId;
+  state.channels = state.channels || {};
+  const storedPV = (state.channels['practice-videos'] || {}).lastMessageId || '0';
 
   const pvMessages = await fetchMessages(discord.channels.practiceVideos, storedPV);
-  const hallMessages = await fetchMessages(discord.channels.theHall, storedHall);
 
   console.log(`[Scan] #practice-videos: ${pvMessages.length} new messages`);
-  console.log(`[Scan] #the-hall: ${hallMessages.length} new messages`);
 
-  const strippedMessages = [...pvMessages, ...hallMessages].filter(isMessagePayloadEmpty);
+  const strippedMessages = pvMessages.filter(isMessagePayloadEmpty);
   if (strippedMessages.length > 0) {
     console.error('');
     console.error('[Scan] WARNING: Discord returned message shell(s) with empty content, attachments, and embeds.');
@@ -108,10 +107,6 @@ async function runScan() {
     console.error('[Scan]   https://discord.com/developers/applications → your app → Bot → Privileged Gateway Intents');
     console.error('[Scan] Without it, clips and links cannot be detected. Reset dojo-state cursors and re-scan after enabling.');
     console.error('');
-  }
-
-  if (pvMessages.length === 0 && hallMessages.length === 0) {
-    console.log('[Scan] No new messages. Running dashboard + rankings refresh anyway.');
   }
 
   const data = readJSON(paths.dataFile);
@@ -135,15 +130,33 @@ async function runScan() {
     }
 
     const lastMsg = pvMessages.sort((a, b) => a.id.localeCompare(b.id))[pvMessages.length - 1];
+    state.channels['practice-videos'] = state.channels['practice-videos'] || {};
     state.channels['practice-videos'].lastMessageId = lastMsg.id;
   }
 
-  if (hallMessages.length > 0) {
-    const hallSummary = processHallMessages(students, hallMessages);
-    if (hallSummary.hallAdds.length > 0) changed = true;
+  // Engagement message channels (#the-hall, #lounge, #sentinel-council): count new
+  // messages per author into each ninja's field, exactly like clips. One cursor per
+  // channel in dojo-state.json, initialized on first run.
+  let newMsgTotal = 0;
+  for (const mc of MESSAGE_CHANNELS) {
+    const channelId = discord.channels[mc.channelKey];
+    if (!channelId) continue; // not configured (e.g. test mode) — skip
+    if (!state.channels[mc.stateKey]) state.channels[mc.stateKey] = { lastMessageId: '0' };
+    const stored = state.channels[mc.stateKey].lastMessageId || '0';
 
-    const lastMsg = hallMessages.sort((a, b) => a.id.localeCompare(b.id))[hallMessages.length - 1];
-    state.channels['the-hall'].lastMessageId = lastMsg.id;
+    const msgs = await fetchMessages(channelId, stored);
+    console.log(`[Scan] #${mc.stateKey}: ${msgs.length} new messages`);
+    newMsgTotal += msgs.length;
+    if (msgs.length === 0) continue;
+
+    const sum = processMessageChannel(students, msgs, mc.field);
+    if (sum.adds.length > 0) changed = true;
+    const lastMsg = msgs.sort((a, b) => a.id.localeCompare(b.id))[msgs.length - 1];
+    state.channels[mc.stateKey].lastMessageId = lastMsg.id;
+  }
+
+  if (pvMessages.length === 0 && newMsgTotal === 0) {
+    console.log('[Scan] No new messages. Running dashboard + rankings refresh anyway.');
   }
 
   if (changed) {

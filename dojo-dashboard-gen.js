@@ -166,7 +166,7 @@ const html = [
 '',
 'var curF="all",curS={col:"tier",dir:"asc"},search="";',
 '',
-'function totalMsgs(s){return s.comments+s.tech+s.lounge+(s.qwei>0?s.qwei:0)+s.hall;}',
+'function totalMsgs(s){return (s.comments||0)+(s.tech||0)+(s.lounge||0)+(s.qwei>0?s.qwei:0)+(s.hall||0)+(s.sentinel||0);}',
 'function msgH(v){if(v>=100)return\'<span class="msg-count msg-high">\'+v+\'</span>\';if(v>=20)return\'<span class="msg-count msg-mid">\'+v+\'</span>\';if(v>=1)return\'<span class="msg-count msg-low">\'+v+\'</span>\';return\'<span class="msg-count msg-zero">0</span>\';}',
 'function vidH(v){if(v>=50)return\'<span class="vid-count vid-elite">\'+v+\'</span>\';if(v>=20)return\'<span class="vid-count vid-chunin">\'+v+\'</span>\';if(v>=1)return\'<span class="vid-count vid-low">\'+v+\'</span>\';return\'<span class="vid-count vid-zero">0</span>\';}',
 'function bpmVal(v,fb){return(v!=null&&v!==undefined&&String(v)!=="undefined")?v:fb;}',
