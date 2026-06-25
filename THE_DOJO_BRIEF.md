@@ -3,7 +3,8 @@
 > Drop-in context for any new chat (Claude Code, claude.ai, Lovable). Covers the **Dojo Pulse bot**
 > (what it is, how it works, how it runs) and **the dream build** (a premium student/home portal).
 > Sibling docs in this repo: `README.md` (dev commands), `TECHNICAL_SUMMARY.md` (infra detail).
-> As of June 2026: **~111 ninjas, 77 active across 36 countries**, ~1,982 / 2,000 clips logged. (Counts refresh nightly.)
+> As of June 2026: **~111 ninjas, 77 active across ~26 countries**, **~2,000 clips logged** (just crossed
+> the 2,000 milestone on 23 Jun 2026). (Counts refresh nightly; country count is the normalized public figure.)
 
 ---
 
@@ -40,7 +41,7 @@ the look (Lovable) and ultimately build a full **premium student portal** that c
 VPS — Hetzner CX23, Helsinki, Ubuntu 24.04, IP 204.168.223.58, PM2-managed
   /opt/dojo-pulse/   = a clean GIT CHECKOUT of github.com/Dreamusichef/aodhq-dojo-dashboard (branch: main)
     bot/pulse-bot.js        — always-on Discord bot (discord.js v14 + node-cron). Crons + slash commands.
-    vps-scan.js             — nightly incremental scan of #practice-videos (+#the-hall) → updates data + dashboard + rankings
+    vps-scan.js             — nightly incremental scan of #practice-videos + engagement channels (#the-hall, #lounge, #sentinel-council) → updates data + dashboard + rankings
     dojo-dashboard-gen.js   — dojo-data.json → HTML dashboard; pushes to GitHub Pages + publishes dojo-data.public.json
     ninja-rankings-gen.js   — dojo-data.json → 3 #ninja-rankings messages
     ecosystem.config.js     — PM2 launch (sets cwd + `-r ./bot/register-deps.js` preload so lib/ resolves discord.js)
@@ -50,19 +51,23 @@ VPS — Hetzner CX23, Helsinki, Ubuntu 24.04, IP 204.168.223.58, PM2-managed
     .pulse-bot-token.json / .github-token.json — secrets (gitignored, never committed)
 ```
 - **No build step, no framework.** Pure Node. Deploy = `git pull` + `pm2 reload`.
-- **lib/ modules:** `clip-detection` (unified clip counting), `scan-process` (scan pipeline), `digest`
-  (daily/weekly/monthly message builders + /mystats), `streaks` (Cycle/Week), `milestone` (celebration message
-  + crossing detection), `clips-period`/`sgt` (SGT dojo-day/week/month windows), `rankings-gen` (the 3 ranking
-  messages + country→flag map), `public-projection` (shapes the privacy-safe public JSON — drops PII, normalizes
-  locations, attaches the `roles` overlay), `recount-clips`/`full-recount` (one-time recount ops), `data`
-  (read/write + reconcile), `discord-fetch` (raw-REST Discord, 429-aware), `discord-config` (channel IDs, paths,
-  token), `pulse-ops` (the bot's run functions).
+- **lib/ modules:** `clip-detection` (unified clip counting), `scan-process` (scan pipeline — counts practice
+  videos **and** engagement messages per author), `digest` (daily/weekly/monthly message builders + /mystats),
+  `streaks` (Cycle/Week), `milestone` (celebration message + crossing detection), `clips-period`/`sgt` (SGT
+  dojo-day/week/month windows), `rankings-gen` (the 3 ranking messages + country→flag map), `public-projection`
+  (shapes the privacy-safe public JSON — drops PII, normalizes locations, attaches the `roles` overlay, adds a
+  stable non-PII `id`), `recount-clips`/`full-recount` (one-time clip recount ops), `recount-messages` (one-time
+  engagement-message recount), `data` (read/write + reconcile), `discord-fetch` (raw-REST Discord, 429-aware),
+  `discord-config` (channel IDs incl. the `MESSAGE_CHANNELS` registry, paths, token), `pulse-ops` (the bot's run
+  functions).
 - **Timezone:** the dojo "day" boundary is **23:00 SGT = 15:00 UTC**. Week rolls SGT-midnight Monday; month by SGT calendar.
 
 ### Nightly schedule (crons, in pulse-bot.js)
 - **22:55 SGT** → `vps-scan.js`: incrementally fetch new `#practice-videos` messages (after a stored cursor),
-  count clips, extract BPM from YouTube titles, update `dojo-data.json` + `dojo-state.json`, regenerate the
-  dashboard (push to Pages + publish public JSON), regenerate + PATCH the 3 `#ninja-rankings` messages.
+  count clips, extract BPM from YouTube titles; then incrementally count new **engagement messages** per author
+  in `#the-hall`, `#lounge`, `#sentinel-council` into each ninja's `hall`/`lounge`/`sentinel` field (one cursor
+  per channel; see the `MESSAGE_CHANNELS` registry in `discord-config`). Update `dojo-data.json` + `dojo-state.json`,
+  regenerate the dashboard (push to Pages + publish public JSON), regenerate + PATCH the 3 `#ninja-rankings` messages.
 - **23:00 SGT** → digest: live-fetch today's clips (writeback timestamps), then post **daily** (most nights),
   **weekly** (Sundays), or **monthly** (1st) to `#dojo-pulse`. Then `runMilestoneCheck` (see §4.6).
 
@@ -70,12 +75,12 @@ VPS — Hetzner CX23, Helsinki, Ubuntu 24.04, IP 204.168.223.58, PM2-managed
 
 ## 3. Data model (`dojo-data.json`)
 ```jsonc
-{ "meta": { "totalClips": 1982, "lastUpdated": "...", "clipsScanPeriod": "...", "hallScanPeriod": "..." },
+{ "meta": { "totalClips": 2000, "lastUpdated": "..." },
   "students": [{
     "name": "Display Name", "u": "discord_username", "loc": "Italy", "join": "2025-03-06",
     "clips": 296,                       // lifetime practice-video count = ranking metric
     "clip_timestamps": ["2026-...Z"],   // per-clip timestamps (partial coverage for older clips)
-    "comments": 0, "tech": 0, "lounge": 7, "qwei": 0, "hall": 0,   // message counts per channel
+    "comments": 0, "tech": 0, "lounge": 7, "qwei": 0, "hall": 0, "sentinel": 0,  // engagement message counts per channel
     "startBpm": 100, "highBpm": 150, "currentBpm": 140,
     "active": true, "lastActivity": "...", "notes": "OG member"
   }]
@@ -85,6 +90,10 @@ VPS — Hetzner CX23, Helsinki, Ubuntu 24.04, IP 204.168.223.58, PM2-managed
   `lib/public-projection.js` and published to GitHub Pages for any frontend to fetch (CORS `*`, ~10-min cache,
   refreshes nightly): `https://dreamusichef.github.io/aodhq-dojo-dashboard/dojo-data.public.json`
   - **Drops** the Discord username `u` (PII) and the source-only fields `clip_timestamps`, `notes`, `lastActivity`.
+  - **Adds a stable, non-PII `id`** — a short SHA-1 hash of the username (`lib/public-projection.js stableId()`,
+    computed *before* `u` is dropped). Deterministic and guaranteed-unique, it gives frontends a safe key for
+    ranking maps / React keys / dedup without exposing the handle. (Use this in Lovable instead of `name|loc`.)
+  - **Keeps the engagement counts** including `sentinel` (the `#sentinel-council` message count).
   - **Normalizes `loc`** to full country names (e.g. `US`/`NY`/`LA`/`S. California` → *United States*;
     `UK`/`London`/`Scotland`/`Wales` → *United Kingdom*; `Perth, AU`/`Melbourne` → *Australia*; etc.).
   - **Roles overlay** (`roles.json`, hand-curated, keyed by username): attaches a `roles` object —
@@ -136,6 +145,21 @@ The fire/feast "banquet" celebration. When the total crosses a new 1,000 boundar
 `https://dreamusichef.github.io/aodhq-dojo-dashboard/` — sortable/filterable leaderboard generated nightly.
 A premium redesign (dark, gold/crimson, kanji crests, BPM journey) is being built in **Lovable**, fed live by
 `dojo-data.public.json`.
+
+### 4.9 Engagement message counts (`MESSAGE_CHANNELS`)
+Beyond practice videos, the nightly scan counts **chat engagement**: one `+1` per (non-bot, tracked) author per
+message in each configured channel, landing in that ninja's field. Driven by a config-only registry in
+`discord-config.js` so adding a channel is a one-line change:
+
+| Channel | Field |
+|---------|-------|
+| `#the-hall` | `hall` |
+| `#lounge` | `lounge` |
+| `#sentinel-council` | `sentinel` |
+
+Counted incrementally every night (a cursor per channel in `dojo-state.json`), exactly like clips. The dashboard's
+"messages" column sums all engagement fields. One-time full rebuild from channel history: `npm run recount:messages`
+(report-only; `--apply` resets the fields from scratch and advances the cursors so the nightly scan stays incremental).
 
 ---
 
@@ -250,6 +274,15 @@ Custom domain target like `dojo.artofdrumminghq.com` (Lovable custom domain + DN
 
 A running log of what's shipped, so any new chat can see where the build is.
 
+- **Jun 2026 — Milestone repeat bug fixed.** The 2,000-clip digest flourish was repeating every night: `last_milestone`
+  (which silences the flourish) was only saved *after* a successful owner-ping, so any ping failure left the milestone
+  re-arming forever. Disarm is now decoupled from the ping (best-effort ping, always record the milestone), with a
+  regression test. (§4.6)
+- **Jun 2026 — Engagement message counts unified.** `#the-hall`, `#lounge`, and `#sentinel-council` are now all
+  counted nightly via the config-driven `MESSAGE_CHANNELS` registry (replacing a hall-only path that wrote to an
+  orphan `hallCount` field nothing read). New `sentinel` field; `npm run recount:messages` rebuilds from history. (§4.9)
+- **Jun 2026 — Stable non-PII `id` in the public API.** `dojo-data.public.json` now carries a deterministic short
+  hash of the username so frontends (Lovable) have a guaranteed-unique key without the handle. (§3)
 - **Jun 2026 — Public API hardened for privacy.** `dojo-data.public.json` now drops the Discord username (`u`) and
   other source-only fields, normalizes `loc` to full country names, and carries a curated `roles` overlay (Dojo
   Sentinels + specializations). New: `lib/public-projection.js`, `roles.json`. (§3, §8)

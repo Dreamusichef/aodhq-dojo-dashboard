@@ -121,7 +121,7 @@ For **inflated clip counts** (see TECHNICAL_SUMMARY Bug 1), use [Full clip recou
 
 Use this when clip detection was fixed, Message Content Intent was enabled late, or counts were double-incremented. It fetches **all** `#practice-videos` history through the **existing Dojo Pulse bot** (same token as `vps-scan.js`) and recomputes `clips` per student using unified detection in `lib/clip-detection.js`.
 
-**What it changes:** `clips` and `meta.totalClips` only. It does **not** rebuild `clip_timestamps`, BPM fields, or `hallCount`. The nightly scan continues incrementally after you apply.
+**What it changes:** `clips` and `meta.totalClips` only. It does **not** rebuild `clip_timestamps`, BPM fields, or the engagement-message fields (`hall`/`lounge`/`sentinel` — those have their own recount, see [Message-count recount](#message-count-recount)). The nightly scan continues incrementally after you apply.
 
 **What it does not do:** Resetting `dojo-state.json` cursors and re-running `vps-scan.js` is **not** a recount — the scan **adds** to existing counts. Use `dev/full-recount.js` instead.
 
@@ -194,6 +194,36 @@ If you already have a message export JSON (from `--save` or `dev/recount-clips.j
 ```bash
 node dev/recount-clips.js --messages dev/out/practice-videos-export.json --data dojo-data.json --apply dojo-data.json --full
 ```
+
+---
+
+## Message-count recount
+
+The engagement-message counts (`hall`, `lounge`, `sentinel`) are scanned incrementally each night from
+`#the-hall`, `#lounge`, and `#sentinel-council` (the `MESSAGE_CHANNELS` registry in [`lib/discord-config.js`](lib/discord-config.js)).
+To rebuild them **from scratch** out of full channel history — e.g. after adding a new channel to the registry,
+or to replace unreliable legacy counts — use the dedicated recount, which mirrors the clip recount:
+
+```bash
+# Report only — fetches full history per channel, prints the diff, writes nothing
+npm run recount:messages
+# or: node dev/recount-messages.js
+
+# Apply — resets hall/lounge/sentinel from history AND advances the dojo-state cursors
+# so the nightly scan continues incrementally (no double counting). Backs up first.
+node dev/recount-messages.js --apply
+```
+
+| Flag | Meaning |
+|------|---------|
+| *(none)* | Report only — no writes |
+| `--apply` | Full reset of each field from history + advance cursors (backs up `dojo-data.json` + `dojo-state.json`) |
+| `--save <dir>` | Also dump the fetched messages per channel for audit |
+
+Run it **once on the VPS** (where the bot token and live data live), then regenerate the dashboard:
+`node dojo-dashboard-gen.js`. A channel the bot can't read (HTTP 403) is reported and left unchanged.
+
+For practice-video clip counts, use [Full clip recount](#full-clip-recount) instead.
 
 ---
 
