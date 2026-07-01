@@ -139,6 +139,8 @@ The fire/feast "banquet" celebration. When the total crosses a new 1,000 boundar
 ### 4.7 Slash commands
 - `/mystats` — **public**, ephemeral: a member's clips, rank, streak, BPM, dojo milestone.
 - `/dojo-celebrate` — **admin-only, private** (ephemeral): prints the ready-to-paste milestone message on demand.
+- `/feedback list` / `/feedback done` — **admin-only, private** (ephemeral): the weekly practice-video
+  review list (see §4.10). `list` is read-only; `done` advances the "last reviewed" marker.
 - (Test-mode only: `/dojo-scan`, `/dojo-digest`, `/dojo-writeback`.)
 
 ### 4.8 Public dashboard
@@ -160,6 +162,19 @@ message in each configured channel, landing in that ninja's field. Driven by a c
 Counted incrementally every night (a cursor per channel in `dojo-state.json`), exactly like clips. The dashboard's
 "messages" column sums all engagement fields. One-time full rebuild from channel history: `npm run recount:messages`
 (report-only; `--apply` resets the fields from scratch and advances the cursors so the nightly scan stays incremental).
+
+### 4.10 Weekly feedback review list (`/feedback`)
+A private, admin-only tool for Wei Lung's Thursday feedback session — a clean list of clips to review, so no
+student is missed and none is reviewed twice. **Not** automated: it only runs when asked, never posts publicly.
+- `/feedback list` — **read-only**: every practice-video link posted in `#practice-videos` since a stored
+  `lastReviewedAt` marker, grouped by student, keeping **only each student's own most recent posting day**
+  (SGT calendar day). One ephemeral block per student: `@username — {n} video(s) (last posted {Weekday})` + links.
+  Safe to re-run any day; it does **not** move the marker. Reuses the exact clip detection the counter uses
+  (`lib/clip-detection.js` `extractClipLinks`, mirroring `countClipsInMessage`).
+- `/feedback done` — **the only mutating action**: sets `lastReviewedAt = now`. Run it after recording the week's
+  feedback so next week's `list` shows only what's new.
+- State: `feedback-state.json` (a tiny gitignored file next to `pulse-state.json`); first run defaults to 7 days ago.
+  Reset the window by editing/deleting that file. Logic in `lib/feedback.js`; fetch in `pulse-ops.fetchFeedbackClips`.
 
 ---
 
@@ -274,6 +289,9 @@ Custom domain target like `dojo.artofdrumminghq.com` (Lovable custom domain + DN
 
 A running log of what's shipped, so any new chat can see where the build is.
 
+- **Jun 2026 — Weekly feedback review command.** `/feedback list` (read-only review list, grouped by student,
+  each student's own most recent day) + `/feedback done` (advance the marker). Reuses the existing clip detection;
+  state in `feedback-state.json`. Admin-only, ephemeral, no automation. (§4.10)
 - **Jun 2026 — Milestone repeat bug fixed.** The 2,000-clip digest flourish was repeating every night: `last_milestone`
   (which silences the flourish) was only saved *after* a successful owner-ping, so any ping failure left the milestone
   re-arming forever. Disarm is now decoupled from the ping (best-effort ping, always record the milestone), with a
