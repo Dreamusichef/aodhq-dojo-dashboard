@@ -20,6 +20,15 @@ const { toSGT } = require('../lib/sgt');
 const { formatMyStats } = require('../lib/digest');
 const { createPulseOps } = require('../lib/pulse-ops');
 const {
+  loadFeedbackState,
+  saveFeedbackState,
+  effectiveSince,
+  groupByStudentLatestDay,
+  formatFeedbackList,
+  chunkMessage,
+  formatDoneConfirmation,
+} = require('../lib/feedback');
+const {
   getDiscordConfig,
   getDataPaths,
   isTestMode,
@@ -45,6 +54,19 @@ async function registerSlashCommands(client) {
       .setDescription('Get the ready-to-paste milestone celebration message (admin only, private)')
       .addIntegerOption(o => o.setName('milestone').setDescription('Milestone to celebrate (default: current 1,000 mark)'))
       .setDefaultMemberPermissions('0'),
+    // Admin-only, private: weekly practice-video review list.
+    //   /feedback list — the review list since the last marker (read-only)
+    //   /feedback done — advance the marker to now (the only mutating action)
+    new SlashCommandBuilder()
+      .setName('feedback')
+      .setDescription('Weekly practice-video review list (admin only, private)')
+      .setDefaultMemberPermissions('0')
+      .addSubcommand(sc => sc
+        .setName('list')
+        .setDescription('Show clips to review since the last marker (read-only, safe to re-run)'))
+      .addSubcommand(sc => sc
+        .setName('done')
+        .setDescription('Advance the review marker to now (run after you record this week\'s feedback)')),
   ];
 
   if (isTestMode()) {
@@ -209,6 +231,63 @@ async function main() {
         const m = 'Failed: ' + e.message;
         if (interaction.deferred || interaction.replied) await interaction.editReply(m).catch(() => {});
         else await interaction.reply({ content: m, ephemeral: true }).catch(() => {});
+      }
+      return;
+    }
+
+    if (interaction.commandName === 'feedback') {
+      if (!interaction.memberPermissions || !interaction.memberPermissions.has('Administrator')) {
+        await interaction.reply({ content: 'Admins only.', ephemeral: true, allowedMentions: { parse: [] } });
+        return;
+      }
+
+      const feedbackStateFile = path.join(path.dirname(paths.pulseStateFile), 'feedback-state.json');
+      const sub = interaction.options.getSubcommand();
+
+      // /feedback done — the ONLY mutating action: advance the marker to now.
+      if (sub === 'done') {
+        try {
+          const st = loadFeedbackState(feedbackStateFile);
+          const now = new Date();
+          st.lastReviewedAt = now.toISOString();
+          saveFeedbackState(feedbackStateFile, st);
+          await interaction.reply({ content: formatDoneConfirmation(now), ephemeral: true, allowedMentions: { parse: [] } });
+        } catch (e) {
+          console.error('[/feedback done error]', e.message);
+          await interaction.reply({ content: 'Failed: ' + e.message, ephemeral: true, allowedMentions: { parse: [] } }).catch(() => {});
+        }
+        return;
+      }
+
+      // /feedback list — read-only. Does NOT advance the marker; safe to re-run.
+      let chunks = [];
+      try {
+        await interaction.deferReply({ ephemeral: true });
+        const st = loadFeedbackState(feedbackStateFile);
+        const since = effectiveSince(st, new Date());
+        const until = new Date();
+        const records = await ops.fetchFeedbackClips(client, since, until);
+        const groups = groupByStudentLatestDay(records);
+        chunks = chunkMessage(formatFeedbackList(groups, { since }));
+        await interaction.editReply({ content: chunks[0], allowedMentions: { parse: [] } });
+      } catch (e) {
+        console.error('[/feedback list error]', e.message);
+        const m = 'Failed: ' + e.message;
+        if (interaction.deferred || interaction.replied) await interaction.editReply({ content: m, allowedMentions: { parse: [] } }).catch(() => {});
+        else await interaction.reply({ content: m, ephemeral: true, allowedMentions: { parse: [] } }).catch(() => {});
+        return;
+      }
+
+      // Extra chunks go as separate follow-ups. A failure here must NOT fall into the
+      // catch above (its editReply would overwrite the already-shown first chunk), so
+      // handle it locally and stop.
+      for (let i = 1; i < chunks.length; i++) {
+        try {
+          await interaction.followUp({ content: chunks[i], ephemeral: true, allowedMentions: { parse: [] } });
+        } catch (e2) {
+          console.error('[/feedback list followUp error]', e2.message);
+          break;
+        }
       }
       return;
     }
