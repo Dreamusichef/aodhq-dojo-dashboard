@@ -54,7 +54,7 @@ Most logic lives in `lib/` and is pure JSON processing; `bot/pulse-bot.js`, `vps
    - `#sentinel-council` (`1367519122799464490`) → `sentinel`
 4. Writes updated `dojo-data.json` (recomputes `meta.totalClips`)
 5. Writes updated `dojo-state.json` (advances every cursor)
-6. Runs `dojo-dashboard-gen.js` → generates HTML → pushes to GitHub Pages via API **and** publishes `dojo-data.public.json` (the two PUTs are sequential to avoid a 409 race)
+6. Runs `dojo-dashboard-gen.js` → generates HTML → pushes `index.html` + `dojo-data.public.json` to GitHub Pages as **one atomic commit** (Git Data API — two separate PUTs used to trigger two competing Pages builds; the cancellation race wedged deploys Jul 2–4 2026)
 7. Runs `ninja-rankings-gen.js` → generates content → PATCHes 3 Discord messages in `#ninja-rankings` (ID: `1488189728913096744`). Message IDs are read from `ninja-rankings-state.json` (no longer hardcoded).
 
 > The dashboard + rankings refresh runs **even when there are no new messages**, so manual data edits still publish.
@@ -213,7 +213,7 @@ The detector counts any video embed, so a shared 3rd-party tutorial can inflate 
 
 ### `dojo-dashboard-gen.js` (~356 lines)
 - Reads `dojo-data.json` → generates a self-contained HTML dashboard (the "messages" column sums all engagement fields incl. `sentinel`)
-- Pushes `index.html` then `dojo-data.public.json` to the GitHub Pages repo (`Dreamusichef/aodhq-dojo-dashboard`) via the GitHub API — **sequentially** (avoids a 409 race)
+- Pushes `index.html` + `dojo-data.public.json` to the GitHub Pages repo (`Dreamusichef/aodhq-dojo-dashboard`) as **one atomic commit** via the Git Data API (`pushFilesAtomic`) — one Pages build per night, no cancellation race
 - Builds the public JSON via `lib/public-projection.js buildPublicStudents()` (+ `roles.json`)
 - Uses a GitHub personal access token from `.github-token.json`
 

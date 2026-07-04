@@ -308,27 +308,37 @@ if (isTestMode()) {
     });
   }
 
-  // 1) Push index.html (dashboard) THEN dojo-data.json (public data) to the Pages repo.
-  //    Must be sequential — concurrent content PUTs to the same branch race on the commit
-  //    sha and 409. The slim dojo-data.json is what the live frontend fetches (drops
-  //    clip_timestamps + internal notes; GitHub Pages serves it with CORS *).
+  // 1) Push index.html (dashboard) + dojo-data.public.json (public data) as ONE atomic
+  //    commit via the Git Data API. Two separate content PUTs used to trigger two Pages
+  //    builds 2s apart; the second cancelled the first mid-deploy, which intermittently
+  //    wedged the deploy ("Deployment failed, try again later" — site froze on Jul 1 2026
+  //    data for 3 days). One commit → one Pages build → no cancellation race. The slim
+  //    dojo-data.public.json is what the live frontend fetches (GitHub Pages serves it
+  //    with CORS *).
   const owner = 'Dreamusichef';
   const repo = 'aodhq-dojo-dashboard';
+  const gitBase = '/repos/' + owner + '/' + repo + '/git';
 
-  function pushFile(file, contentB64, message) {
-    return ghApi('GET', '/repos/' + owner + '/' + repo + '/contents/' + file)
-      .then(existing => {
-        let sha = null;
-        if (existing.status === 200) { try { sha = JSON.parse(existing.body).sha; } catch (e) {} }
-        const body = { message, content: contentB64, branch: 'main' };
-        if (sha) body.sha = sha;
-        return ghApi('PUT', '/repos/' + owner + '/' + repo + '/contents/' + file, body);
-      })
-      .then(r => {
-        const okPush = r.status === 200 || r.status === 201;
-        console.log(okPush ? (file + ' pushed') : (file + ' push failed (' + r.status + '): ' + r.body.slice(0, 160)));
-        return okPush;
-      });
+  async function pushFilesAtomic(files, message) {
+    const expect = (r, want, step) => {
+      if (r.status !== want) throw new Error(step + ' failed (' + r.status + '): ' + r.body.slice(0, 160));
+      return JSON.parse(r.body);
+    };
+
+    const ref = expect(await ghApi('GET', gitBase + '/ref/heads/main'), 200, 'get ref');
+    const headSha = ref.object.sha;
+    const headCommit = expect(await ghApi('GET', gitBase + '/commits/' + headSha), 200, 'get commit');
+
+    const treeEntries = [];
+    for (const f of files) {
+      const blob = expect(await ghApi('POST', gitBase + '/blobs', { content: f.contentB64, encoding: 'base64' }), 201, 'create blob ' + f.path);
+      treeEntries.push({ path: f.path, mode: '100644', type: 'blob', sha: blob.sha });
+    }
+
+    const tree = expect(await ghApi('POST', gitBase + '/trees', { base_tree: headCommit.tree.sha, tree: treeEntries }), 201, 'create tree');
+    const commit = expect(await ghApi('POST', gitBase + '/commits', { message, tree: tree.sha, parents: [headSha] }), 201, 'create commit');
+    expect(await ghApi('PATCH', gitBase + '/refs/heads/main', { sha: commit.sha }), 200, 'update ref');
+    return commit.sha;
   }
 
   // Public projection: attach roles (lookup by `u`), normalize loc, then DROP `u` (privacy).
@@ -337,9 +347,14 @@ if (isTestMode()) {
   const publicStudents = buildPublicStudents(data.students, roles);
   const publicData = { meta: { totalClips: meta.totalClips, lastUpdated: meta.lastUpdated, count: publicStudents.length }, students: publicStudents };
 
-  pushFile('index.html', Buffer.from(html).toString('base64'), 'Dashboard update ' + new Date().toISOString())
-    .then(() => pushFile('dojo-data.public.json', Buffer.from(JSON.stringify(publicData)).toString('base64'), 'Data update ' + new Date().toISOString()))
-    .then(() => console.log('GitHub Pages updated: https://dreamusichef.github.io/aodhq-dojo-dashboard/  (+ /dojo-data.public.json)'))
+  pushFilesAtomic(
+    [
+      { path: 'index.html', contentB64: Buffer.from(html).toString('base64') },
+      { path: 'dojo-data.public.json', contentB64: Buffer.from(JSON.stringify(publicData)).toString('base64') },
+    ],
+    'Nightly update ' + new Date().toISOString()
+  )
+    .then(sha => console.log('GitHub Pages updated in one commit (' + sha.slice(0, 7) + '): https://dreamusichef.github.io/aodhq-dojo-dashboard/  (+ /dojo-data.public.json)'))
     .catch(e => console.log('Pages push error: ' + e.message));
 
   // 2) Also update Gist (legacy, keeps old links working)

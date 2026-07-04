@@ -189,7 +189,9 @@ student is missed and none is reviewed twice. **Not** automated: it only runs wh
 - **Source of truth = `main`.** Edit → push to `main` → on the VPS: `cd /opt/dojo-pulse && git pull && pm2 reload ecosystem.config.js`.
 - `dojo-data.json` and the other state/secret files are **gitignored** and live only on the VPS — `git pull`
   never touches them. (Never publish a public artifact under a gitignored source-of-truth filename — it once
-  clobbered the live data.) Two GitHub-API content PUTs to the same branch must be **sequential** (else 429/409).
+  clobbered the live data.) Generated files are pushed to Pages as **one atomic commit** (Git Data API) — never
+  as separate content PUTs: two pushes seconds apart trigger two competing Pages builds, and the cancellation
+  race can wedge the deploy (site froze on stale data Jul 2–4 2026 exactly this way).
 - **Claude does NOT run SQL/DDL.** Database changes (if any) are pasted in chat for the human to run.
 - Local dev: `npm test` (regression), `npm run dev:scan|dev:digest|dev:rankings` (offline, no Discord).
 
