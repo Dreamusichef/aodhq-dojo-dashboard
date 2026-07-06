@@ -341,6 +341,65 @@ if (isTestMode()) {
     return commit.sha;
   }
 
+  // Empty commit (same tree as HEAD) — re-triggers the Pages build without changing content.
+  async function pushEmptyCommit(message) {
+    const expect = (r, want, step) => {
+      if (r.status !== want) throw new Error(step + ' failed (' + r.status + '): ' + r.body.slice(0, 160));
+      return JSON.parse(r.body);
+    };
+    const ref = expect(await ghApi('GET', gitBase + '/ref/heads/main'), 200, 'get ref');
+    const headSha = ref.object.sha;
+    const headCommit = expect(await ghApi('GET', gitBase + '/commits/' + headSha), 200, 'get commit');
+    const commit = expect(await ghApi('POST', gitBase + '/commits', { message, tree: headCommit.tree.sha, parents: [headSha] }), 201, 'create commit');
+    expect(await ghApi('PATCH', gitBase + '/refs/heads/main', { sha: commit.sha }), 200, 'update ref');
+    return commit.sha;
+  }
+
+  // Wait for the "pages build and deployment" run for a commit to finish.
+  // Returns 'success' | 'failure' | 'timeout'.
+  async function waitForPagesRun(sha, timeoutMs) {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      await new Promise(res => setTimeout(res, 20000));
+      try {
+        const r = await ghApi('GET', '/repos/' + owner + '/' + repo + '/actions/runs?head_sha=' + sha + '&per_page=5');
+        if (r.status !== 200) continue;
+        const runs = JSON.parse(r.body).workflow_runs || [];
+        const run = runs.find(x => /pages build and deployment/i.test(x.name || '')) || runs[0];
+        if (run && run.status === 'completed') {
+          return run.conclusion === 'success' ? 'success' : (run.conclusion || 'failure');
+        }
+      } catch (e) { /* transient — keep polling */ }
+    }
+    return 'timeout';
+  }
+
+  // GitHub Pages deploys triggered in the nightly window have been failing GitHub-side
+  // ("Deployment failed, try again later" in ~10s; started Jul 2 2026 with GitHub's Pages
+  // runner migration) while off-window deploys succeed. Self-heal: verify the run, and on
+  // failure re-trigger with an empty commit a couple of minutes later. Two retries max.
+  async function verifyAndRetryPagesDeploy(firstSha) {
+    const MAX_RETRIES = 2;
+    let sha = firstSha;
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      const outcome = await waitForPagesRun(sha, 5 * 60 * 1000);
+      if (outcome === 'success') {
+        if (attempt > 0) console.log('[Pages] deploy recovered on retry ' + attempt + ' (' + sha.slice(0, 7) + ')');
+        return true;
+      }
+      if (attempt === MAX_RETRIES) break;
+      console.log('[Pages] deploy ' + outcome + ' for ' + sha.slice(0, 7) + ' — re-triggering with an empty commit (retry ' + (attempt + 1) + '/' + MAX_RETRIES + ')');
+      try {
+        sha = await pushEmptyCommit('Pages deploy retry ' + (attempt + 1) + ' ' + new Date().toISOString());
+      } catch (e) {
+        console.log('[Pages] retry push failed: ' + e.message);
+        return false;
+      }
+    }
+    console.log('[Pages] deploy still failing after ' + MAX_RETRIES + ' retries — the site may serve stale data. Check the repo Actions tab.');
+    return false;
+  }
+
   // Public projection: attach roles (lookup by `u`), normalize loc, then DROP `u` (privacy).
   const rolesPath = path.join(__dirname, 'roles.json');
   const roles = fs.existsSync(rolesPath) ? JSON.parse(fs.readFileSync(rolesPath, 'utf8')) : {};
@@ -354,7 +413,10 @@ if (isTestMode()) {
     ],
     'Nightly update ' + new Date().toISOString()
   )
-    .then(sha => console.log('GitHub Pages updated in one commit (' + sha.slice(0, 7) + '): https://dreamusichef.github.io/aodhq-dojo-dashboard/  (+ /dojo-data.public.json)'))
+    .then(sha => {
+      console.log('GitHub Pages updated in one commit (' + sha.slice(0, 7) + '): https://dreamusichef.github.io/aodhq-dojo-dashboard/  (+ /dojo-data.public.json)');
+      return verifyAndRetryPagesDeploy(sha);
+    })
     .catch(e => console.log('Pages push error: ' + e.message));
 
   // 2) Also update Gist (legacy, keeps old links working)

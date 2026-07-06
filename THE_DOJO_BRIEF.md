@@ -63,7 +63,7 @@ VPS — Hetzner CX23, Helsinki, Ubuntu 24.04, IP 204.168.223.58, PM2-managed
 - **Timezone:** the dojo "day" boundary is **23:00 SGT = 15:00 UTC**. Week rolls SGT-midnight Monday; month by SGT calendar.
 
 ### Nightly schedule (crons, in pulse-bot.js)
-- **22:55 SGT** → `vps-scan.js`: incrementally fetch new `#practice-videos` messages (after a stored cursor),
+- **22:50 SGT** → `vps-scan.js`: incrementally fetch new `#practice-videos` messages (after a stored cursor),
   count clips, extract BPM from YouTube titles; then incrementally count new **engagement messages** per author
   in `#the-hall`, `#lounge`, `#sentinel-council` into each ninja's `hall`/`lounge`/`sentinel` field (one cursor
   per channel; see the `MESSAGE_CHANNELS` registry in `discord-config`). Update `dojo-data.json` + `dojo-state.json`,

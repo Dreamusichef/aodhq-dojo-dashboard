@@ -44,7 +44,7 @@ Most logic lives in `lib/` and is pure JSON processing; `bot/pulse-bot.js`, `vps
 
 ## Nightly Schedule (all times SGT = UTC+8)
 
-### 22:55 SGT → `vps-scan.js` (triggered by pulse-bot.js via node-cron)
+### 22:50 SGT → `vps-scan.js` (triggered by pulse-bot.js via node-cron; was 22:55 — shifted Jul 2026 to dodge a GitHub-side Pages-deploy failure window at ~14:55 UTC)
 
 1. Fetches new messages from `#practice-videos` (ID: `1356110369818411131`) incrementally using stored `lastMessageId` cursor
 2. For each practice video message: appends `clip_timestamps` (deduped) and increments `student.clips` by the newly-recorded count, sets `lastActivity`, extracts BPM from YouTube embed titles
@@ -193,7 +193,7 @@ The detector counts any video embed, so a shared 3rd-party tutorial can inflate 
 
 ### `bot/pulse-bot.js` (~270 lines)
 - discord.js v14 client; **thin entry point** — registers crons + slash commands and delegates to `lib/pulse-ops.js`.
-- Two internal crons (node-cron): scan at 22:55 SGT, digest at 23:00 SGT (digest then runs `runMilestoneCheck`).
+- Two internal crons (node-cron): scan at 22:50 SGT, digest at 23:00 SGT (digest then runs `runMilestoneCheck`).
 - Must be launched via `ecosystem.config.js` (sets cwd + the `-r ./bot/register-deps.js` preload so shared `lib/` code can resolve `discord.js` from `bot/node_modules`). A bare `node bot/pulse-bot.js` crashes with `MODULE_NOT_FOUND`.
 - Slash commands: `/mystats` (public, ephemeral), `/dojo-celebrate` (admin-only). Test-mode-only: `/dojo-scan`, `/dojo-digest`, `/dojo-writeback`.
 

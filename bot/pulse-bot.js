@@ -172,7 +172,10 @@ async function main() {
         } catch (e) { console.error('[Digest error]', e); }
       }, { timezone: 'UTC' });
 
-      cron.schedule('55 14 * * *', async () => {
+      // 22:50 SGT (was 22:55): GitHub Pages deploys triggered at ~14:55 UTC were failing
+      // GitHub-side every night since Jul 2 2026; off-window deploys succeed. Shifting the
+      // scan dodges that window, and dojo-dashboard-gen also verifies + retries the deploy.
+      cron.schedule('50 14 * * *', async () => {
         try {
           console.log('[Scan] Starting vps-scan.js...');
           await runScanScript();
@@ -180,7 +183,7 @@ async function main() {
       }, { timezone: 'UTC' });
 
       console.log('Cron schedules active.');
-      console.log('  22:55 SGT daily — scan (dashboard + rankings)');
+      console.log('  22:50 SGT daily — scan (dashboard + rankings)');
       console.log('  23:00 SGT daily — monthly on 1st, weekly on Sundays, daily otherwise');
     } else if (isTestMode()) {
       console.log('[Test mode] Cron disabled. Use /dojo-scan, /dojo-digest, or npm run test:scan / test:digest.');
