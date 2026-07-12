@@ -121,7 +121,13 @@ marked 💤. Each line shows a country flag (`lib/rankings-gen.js` FLAGS map) + 
 - **Monthly** (1st): previous-month report, top ninjas, record detection.
 
 ### 4.4 Streaks (`lib/streaks.js`)
-Weekly Cycle/Week tracking; an 8-week cycle then a recovery window ("Cycle N begins on return").
+Weekly Cycle/Week tracking (SGT ISO weeks). Post at least once a week to keep the streak; 8 consecutive
+weeks completes a cycle (completion week = W0). Then the **recovery window**: 2 full rest weeks (W1–W2,
+the "14 days of rest") **plus the whole return week W3** — one post any time in W1–W3 (judged by the week
+the post lands in, so a Sunday-night return still counts) promotes to **Cycle N+1, Week 1** in that week.
+No post by the end of W3 → true reset; the next post starts Cycle 1, Week 1. Completed cycles are carried
+(`carry`) so the nightly recompute can't demote a promoted member; cycle completion only triggers on a
+LIVE streak (stale history can't re-arm recovery).
 
 ### 4.5 Mission bar
 Dynamic progress toward the next 1,000-clip goal (`ceil(total/1000)*1000`). Shows `X/next` + "to go".
@@ -291,6 +297,10 @@ Custom domain target like `dojo.artofdrumminghq.com` (Lovable custom domain + DN
 
 A running log of what's shipped, so any new chat can see where the build is.
 
+- **Jul 2026 — Streak recovery fixed (the mandubien bug).** The engine never implemented "Cycle N+1 begins
+  on return": returning members were reset to Cycle 1, and a stale 8-week history re-armed "recovery" every
+  night. Now: return within the window (2 rest weeks + full return week) → next cycle Week 1, carried across
+  recomputes; completion detection gated on a live streak. (§4.4)
 - **Jun 2026 — Weekly feedback review command.** `/feedback list` (read-only review list, grouped by student,
   each student's own most recent day) + `/feedback done` (advance the marker). Reuses the existing clip detection;
   state in `feedback-state.json`. Admin-only, ephemeral, no automation. (§4.10)
