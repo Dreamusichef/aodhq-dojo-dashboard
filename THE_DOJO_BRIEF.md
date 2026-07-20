@@ -122,12 +122,13 @@ marked 💤. Each line shows a country flag (`lib/rankings-gen.js` FLAGS map) + 
 
 ### 4.4 Streaks (`lib/streaks.js`)
 Weekly Cycle/Week tracking (SGT ISO weeks). Post at least once a week to keep the streak; 8 consecutive
-weeks completes a cycle (completion week = W0). Then the **recovery window**: 2 full rest weeks (W1–W2,
-the "14 days of rest") **plus the whole return week W3** — one post any time in W1–W3 (judged by the week
-the post lands in, so a Sunday-night return still counts) promotes to **Cycle N+1, Week 1** in that week.
-No post by the end of W3 → true reset; the next post starts Cycle 1, Week 1. Completed cycles are carried
-(`carry`) so the nightly recompute can't demote a promoted member; cycle completion only triggers on a
-LIVE streak (stale history can't re-arm recovery).
+weeks completes a cycle (completion week = W0). Then **recovery**: 2 full rest weeks (W1–W2, the "14 days
+of rest") followed by the **return week W3**. Posts during W1–W2 are **bonus light reps** — they never
+start the next cycle's clock and create no obligation. Posting **in W3** (any day through Sunday; judged
+by the week the post lands in, so a Sunday-night return still counts) promotes to **Cycle N+1, Week 1**
+(= W3). No post in W3 → true reset (bonus rest posts don't substitute); the next post starts Cycle 1,
+Week 1. Completed cycles are carried (`carry`) so the nightly recompute can't demote a promoted member;
+cycle completion only triggers on a LIVE streak (stale history can't re-arm recovery).
 
 ### 4.5 Mission bar
 Dynamic progress toward the next 1,000-clip goal (`ceil(total/1000)*1000`). Shows `X/next` + "to go".

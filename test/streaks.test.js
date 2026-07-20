@@ -51,12 +51,13 @@ describe('recovery → return promotes to the next cycle (the promise)', () => {
     assert.strictEqual(s.carry, 1);
   });
 
-  it('post during a REST week also promotes (light reps count as return)', () => {
+  it('post during a REST week does NOT promote — light reps are bonus, no obligation', () => {
     const clips = cycleRun(2).concat([ts(0)]); // W0 two weeks ago; posts in rest week W2
     const streaks = { early: recoveryState(2) };
     computeStreaks([student('early', clips)], streaks);
-    assert.strictEqual(streaks.early.status, 'active');
-    assert.strictEqual(streaks.early.current_cycle, 2);
+    assert.strictEqual(streaks.early.status, 'recovery');        // still resting
+    assert.strictEqual(streaks.early.current_cycle, 1);          // no clock started
+    assert.strictEqual(streaks.early.recovery_deadline, addWeeks(weekKeyAgo(2), 3)); // window unchanged
   });
 
   it('Sunday-edge: return posted inside the window but PROCESSED after the deadline still promotes', () => {
@@ -95,6 +96,17 @@ describe('recovery → return promotes to the next cycle (the promise)', () => {
 });
 
 describe('recovery expiry (no return by end of the return week)', () => {
+  it('rest-week posts do NOT save a missed return week → reset', () => {
+    // W0 four weeks ago; light reps in rest week W1 (3 weeks ago); NOTHING in the
+    // return week (last week). Bonus posts don't substitute for the W3 obligation.
+    const clips = cycleRun(4).concat([ts(3)]);
+    const streaks = { rester: recoveryState(4) };
+    computeStreaks([student('rester', clips)], streaks);
+    assert.strictEqual(streaks.rester.status, 'inactive');
+    assert.strictEqual(streaks.rester.current_cycle, 0);
+    assert.strictEqual(streaks.rester.carry, 0);
+  });
+
   it('window closed with no post → full reset; next post starts Cycle 1 Week 1', () => {
     // W0 five weeks ago → deadline two weeks ago; never returned.
     const clips = cycleRun(5);
@@ -132,16 +144,17 @@ describe('cycle completion detection (eternal re-arm fixed)', () => {
     assert.strictEqual(s.recovery_deadline, addWeeks(currentSGTWeekKey(), 3));
   });
 
-  it('continuous poster: completes, returns adjacent week — old weeks never double-count', () => {
-    // Cycle 1 ended LAST week; they post again THIS week (no gap at all).
+  it('posting straight through rest keeps recovery — no early obligation, idempotent', () => {
+    // Cycle 1 ended LAST week; they post again THIS week (rest week 1, no gap at all).
     const clips = cycleRun(1).concat([ts(0)]);
     const streaks = { nonstop: recoveryState(1) };
-    computeStreaks([student('nonstop', clips)], streaks);   // promote
-    assert.strictEqual(streaks.nonstop.current_cycle, 2);
-    assert.strictEqual(streaks.nonstop.current_week, 1);    // anchored walk: only the new week counts
-    computeStreaks([student('nonstop', clips)], streaks);   // recompute — still Cycle 2 Week 1
-    assert.strictEqual(streaks.nonstop.current_cycle, 2);
-    assert.strictEqual(streaks.nonstop.current_week, 1);    // NOT week 9 / cycle 3
+    computeStreaks([student('nonstop', clips)], streaks);
+    assert.strictEqual(streaks.nonstop.status, 'recovery');  // rest post = bonus, clock NOT started
+    assert.strictEqual(streaks.nonstop.current_cycle, 1);
+    assert.strictEqual(streaks.nonstop.current_week, 8);
+    computeStreaks([student('nonstop', clips)], streaks);    // recompute — unchanged
+    assert.strictEqual(streaks.nonstop.status, 'recovery');
+    assert.strictEqual(streaks.nonstop.recovery_deadline, addWeeks(weekKeyAgo(1), 3));
   });
 });
 

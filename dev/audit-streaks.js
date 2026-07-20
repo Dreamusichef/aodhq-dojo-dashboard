@@ -11,9 +11,10 @@
  *
  * Rules replayed (see lib/streaks.js):
  *   - post ≥1×/week keeps the streak; 8 consecutive weeks completes a cycle (W0)
- *   - recovery: rest W1+W2, return through W3 (post's week decides, inclusive)
- *   - return in W1..W3 → next cycle, Week 1 (carry preserved)
- *   - no post by end of W3 → true reset (next post = Cycle 1 Week 1)
+ *   - recovery: rest weeks W1+W2 (posts there are BONUS — no promotion, no obligation),
+ *     then the return week W3 (post's week decides, through Sunday)
+ *   - post in W3 → next cycle, Week 1 = W3 (carry preserved)
+ *   - no post in W3 → true reset (next post = Cycle 1 Week 1)
  *
  * Usage (VPS, from /opt/dojo-pulse):
  *   node dev/audit-streaks.js                 # report only
@@ -50,7 +51,13 @@ function replay(weeks, currentWeek) {
 
   for (const w of weeks) {
     if (mode === 'recovery') {
-      if (w <= deadline) {
+      if (w < deadline) {
+        // Rest-week post — bonus light reps, no promotion, no obligation.
+        events.push({ type: 'rest-post', week: w });
+        prev = w;
+        continue;
+      }
+      if (w === deadline) {
         carry = completed;
         events.push({ type: 'promoted', week: w, toCycle: carry + 1 });
         mode = 'active'; runLen = 1;
@@ -120,7 +127,7 @@ function main() {
     if (weeks.length === 0) continue;
 
     const { expected, events } = replay(weeks, currentWeek);
-    const notable = events.filter(e => ['completed', 'promoted', 'window-missed', 'window-expired'].includes(e.type))
+    const notable = events.filter(e => ['completed', 'promoted', 'rest-post', 'window-missed', 'window-expired'].includes(e.type))
       .filter(e => !e.week || inWindow(e.week));
 
     const st = state.streaks[s.u];
@@ -138,8 +145,9 @@ function main() {
     storiesShown++;
     console.log(`— ${s.name} (@${s.u})`);
     for (const e of notable) {
-      if (e.type === 'completed') console.log(`   ✅ completed Cycle ${e.cycle} in ${e.week} (window through end of ${addWeeks(e.week, 3)})`);
-      if (e.type === 'promoted') console.log(`   ⬆️  RETURNED IN-WINDOW ${e.week} → should be Cycle ${e.toCycle} (old engine reset them to Cycle 1)`);
+      if (e.type === 'completed') console.log(`   ✅ completed Cycle ${e.cycle} in ${e.week} (rest ${addWeeks(e.week, 1)}–${addWeeks(e.week, 2)}, return week ${addWeeks(e.week, 3)})`);
+      if (e.type === 'rest-post') console.log(`   💪 light reps during rest (${e.week}) — bonus, no obligation`);
+      if (e.type === 'promoted') console.log(`   ⬆️  RETURNED in the return week ${e.week} → Cycle ${e.toCycle}, Week 1 (old engine would have reset them)`);
       if (e.type === 'window-missed') console.log(`   ⏳ returned ${e.week}, after window ${e.deadline} → legit reset to Cycle 1`);
       if (e.type === 'window-expired') console.log(`   💤 recovery window ${e.deadline} passed with no return → reset`);
     }
