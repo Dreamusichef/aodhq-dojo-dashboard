@@ -127,7 +127,9 @@ function main() {
     const diff = hasState && st && (
       st.status !== expected.status ||
       (st.current_cycle || 0) !== expected.current_cycle ||
-      (st.current_week || 0) !== expected.current_week
+      (st.current_week || 0) !== expected.current_week ||
+      // a recovery member with a wrong (re-armed) window must be normalized too
+      (expected.status === 'recovery' && st.recovery_deadline !== expected.recovery_deadline)
     );
     const wasRobbed = events.some(e => e.type === 'promoted' && inWindow(e.week));
 
