@@ -165,9 +165,9 @@ Every 1,000 clips (≥2,000), the dojo "feasts." The bot does **not** post publi
 
 ## Known Issues (current)
 
-### 🟡 `#the-hall` / engagement channels may 403
+### 🟡 Engagement channels depend on the bot's per-channel access
 
-Historically the bot got HTTP 403 fetching `#the-hall`. Engagement counting now covers `#the-hall`, `#lounge`, and `#sentinel-council` (the `MESSAGE_CHANNELS` registry), but each still depends on the bot having **Read Message History** there. A channel that 403s is logged and its field is left unchanged — verify the bot's per-channel permissions if `hall`/`lounge`/`sentinel` stops moving. (Low urgency — engagement counts aren't part of the ranking metric.)
+Engagement counting covers `#the-hall`, `#lounge`, and `#sentinel-council` (the `MESSAGE_CHANNELS` registry). Each needs the bot to have **View Channel + Read Message History**; without it the scan gets HTTP 403 (code 50001 "Missing Access"), logs `fetchMessages failed 403`, and leaves that field unchanged. `#the-hall` hit exactly this until Jul 2026 (its role override never included the bot) — fixed by granting the bot channel access, then `node dev/recount-messages.js --apply` to backfill the missed history. Watch the error log if `hall`/`lounge`/`sentinel` stops moving. (Low urgency — engagement counts aren't part of the ranking metric.)
 
 ### 🟡 Shared-tutorial over-count
 

@@ -205,7 +205,9 @@ student is missed and none is reviewed twice. **Not** automated: it only runs wh
 ---
 
 ## 7. Known gotchas
-- `#the-hall` returns 403 (low priority; hall counts not displayed).
+- Engagement channels need the bot to have **View Channel + Read Message History**, or the scan gets HTTP 403
+  (code 50001 "Missing Access") on that channel and its count silently stops. (`#the-hall` hit this until Jul 2026
+  — resolved by granting the bot access, then `npm run recount:messages --apply` to backfill.)
 - Detector counts any video embed → shared tutorials can over-count; sweep only catches ones with a 3rd-party
   channel name. Manual VIPs (1-on-1 students who don't post publicly, e.g. "worm soup") are tracked by hand.
 - iOS/iPadOS have no Web MIDI (relevant to the separate metronome app, not the dojo).
