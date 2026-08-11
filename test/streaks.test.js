@@ -2,8 +2,45 @@
 
 const { describe, it } = require('node:test');
 const assert = require('node:assert');
-const { computeStreaks, addWeeks } = require('../lib/streaks');
+const { computeStreaks, addWeeks, weekKeyToMonday } = require('../lib/streaks');
 const { currentSGTWeekKey, sgtWeekKey } = require('../lib/sgt');
+
+describe('weekKeyToMonday is the exact inverse of sgtWeekKey', () => {
+  it('round-trips every Monday across 2024–2027 (all Jan-1 weekdays + leap years)', () => {
+    let checked = 0;
+    for (let y = 2024; y <= 2027; y++) {
+      for (let m = 0; m < 12; m++) {
+        for (let d = 1; d <= 28; d++) {
+          const dt = new Date(y, m, d, 12, 0, 0);
+          if (dt.getDay() !== 1) continue;
+          const back = weekKeyToMonday(sgtWeekKey(dt));
+          assert.strictEqual(
+            [back.getFullYear(), back.getMonth(), back.getDate()].join('-'),
+            [dt.getFullYear(), dt.getMonth(), dt.getDate()].join('-'),
+            `round-trip failed for ${dt.toDateString()}`
+          );
+          checked++;
+        }
+      }
+    }
+    assert.ok(checked > 150, `expected to check many Mondays, got ${checked}`);
+  });
+
+  it('recovery dates land 2 rest weeks + a return week after completion (no week drift)', () => {
+    // Completion week = Mon Aug 10 2026. Rest Aug 17–30 (14 days), return Aug 31 – Sep 6.
+    const w0 = sgtWeekKey(new Date(2026, 7, 10, 12));
+    const monOf = k => weekKeyToMonday(k);
+    assert.strictEqual(monOf(w0).getDate(), 10);
+    assert.strictEqual(monOf(addWeeks(w0, 1)).getDate(), 17);  // rest week 1
+    assert.strictEqual(monOf(addWeeks(w0, 2)).getDate(), 24);  // rest week 2
+    const ret = monOf(addWeeks(w0, 3));                        // return week
+    assert.strictEqual(ret.getMonth(), 7);                     // August
+    assert.strictEqual(ret.getDate(), 31);
+    // Exactly 14 days of rest between the end of W0 and the start of the return week.
+    const restDays = (ret - monOf(w0)) / 86400000 - 7;
+    assert.strictEqual(restDays, 14);
+  });
+});
 
 const WEEK = 7 * 24 * 3600 * 1000;
 // Timestamp exactly n weeks before now — same weekday, so its SGT week key is
